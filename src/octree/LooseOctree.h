@@ -30,16 +30,9 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#pragma once
-
 #include <Magnum/Magnum.h>
 #include <Magnum/Math/Vector3.h>
 
-#include <array>
-#include <cstdint>
-#include <climits>
-#include <memory>
-#include <unordered_map>
 #include <unordered_set>
 
 namespace Magnum { namespace Examples {
