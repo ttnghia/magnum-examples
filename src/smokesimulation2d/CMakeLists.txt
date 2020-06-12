@@ -61,25 +61,12 @@ file(GLOB_RECURSE Smoke2D_SOURCES ./Smoke/*.cpp)
 
 
 add_executable(magnum-smokesimulation2d WIN32
-#    SmokeSimulation2DExample.cpp
-    # DataStructures/Array2X.h
-    # DataStructures/MathHelpers.h
-    # DataStructures/PCGSolver.h
-    # DataStructures/SDFObject.h
-    # DataStructures/SparseMatrix.h
-    # DrawableObjects/FlatShadeObject2D.h
-    # DrawableObjects/ParticleGroup2D.h
-    # DrawableObjects/ParticleGroup2D.cpp
-    # DrawableObjects/WireframeObject2D.h
-    # SmokeSolver/SolverData.h
-    # SmokeSolver/ApicSolver2D.h
-    # SmokeSolver/ApicSolver2D.cpp
-    # Shaders/ParticleSphereShader2D.h
-    # Shaders/ParticleSphereShader2D.cpp
+    SmokeSimulation2DExample.cpp
+    ../motionblur/Icosphere.cpp
     ${Smoke2D_SOURCES}
     ${SmokeSimulation2D_RESOURCES})
 target_link_libraries(magnum-smokesimulation2d PRIVATE
-#    Corrade::Main
+    Corrade::Main
     Magnum::Application
     Magnum::GL
     Magnum::Magnum
