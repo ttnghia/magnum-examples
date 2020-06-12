@@ -45,7 +45,6 @@ find_package(Magnum REQUIRED
     SceneGraph
     Shaders
     Sdl2Application)
-find_package(MagnumIntegration REQUIRED ImGui)
 
 set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 
@@ -55,6 +54,7 @@ add_executable(magnum-octree WIN32
     LooseOctree.h
     LooseOctree.cpp
     OctreeExample.cpp
+    ../motionblur/Icosphere.cpp
     DataStructures/Array2X.h
     DataStructures/MathHelpers.h
     DataStructures/PCGSolver.h
@@ -78,8 +78,7 @@ target_link_libraries(magnum-octree PRIVATE
     Magnum::MeshTools
     Magnum::Primitives
     Magnum::SceneGraph
-    Magnum::Shaders
-    MagnumIntegration::ImGui)
+    Magnum::Shaders)
 target_include_directories(magnum-octree PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR})
