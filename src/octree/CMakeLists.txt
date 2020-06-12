@@ -48,28 +48,13 @@ find_package(Magnum REQUIRED
 
 set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 
-corrade_add_resource(Octree_RESOURCES resources.conf)
 
 add_executable(magnum-octree WIN32
     LooseOctree.h
     LooseOctree.cpp
     OctreeExample.cpp
-    ../motionblur/Icosphere.cpp
-    DataStructures/Array2X.h
-    DataStructures/MathHelpers.h
-    DataStructures/PCGSolver.h
-    DataStructures/SDFObject.h
-    DataStructures/SparseMatrix.h
-    DrawableObjects/FlatShadeObject2D.h
-    DrawableObjects/ParticleGroup2D.h
-    DrawableObjects/ParticleGroup2D.cpp
-    DrawableObjects/WireframeObject2D.h
-    FluidSolver/SolverData.h
-    FluidSolver/ApicSolver2D.h
-    FluidSolver/ApicSolver2D.cpp
-    Shaders/ParticleSphereShader2D.h
-    Shaders/ParticleSphereShader2D.cpp
-    ${Octree_RESOURCES})
+    ../arcball/ArcBall.cpp
+    ../motionblur/Icosphere.cpp)
 target_link_libraries(magnum-octree PRIVATE
     Corrade::Main
     Magnum::Application
