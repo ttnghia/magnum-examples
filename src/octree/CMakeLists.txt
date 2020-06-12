@@ -52,6 +52,8 @@ set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 corrade_add_resource(Octree_RESOURCES resources.conf)
 
 add_executable(magnum-octree WIN32
+    LooseOctree.h
+    LooseOctree.cpp
     OctreeExample.cpp
     DataStructures/Array2X.h
     DataStructures/MathHelpers.h
