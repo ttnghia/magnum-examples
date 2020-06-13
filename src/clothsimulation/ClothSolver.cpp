@@ -33,7 +33,7 @@
 #include <random>
 
 namespace Magnum { namespace Examples {
-FEMSolver::FEMSolver(const Vector2& origin, Float cellSize, Int nI, Int nJ, SceneObjects* sceneObjs) :
+MSSSolver::MSSSolver(const Vector2& origin, Float cellSize, Int nI, Int nJ, SceneObjects* sceneObjs) :
     _objects{sceneObjs},
     _particles{cellSize},
     _grid{origin, cellSize, nI, nJ} {
@@ -50,7 +50,7 @@ FEMSolver::FEMSolver(const Vector2& origin, Float cellSize, Int nI, Int nJ, Scen
 }
 
 /* This function should be called again every time the boundary changes */
-void FEMSolver::initBoundary() {
+void MSSSolver::initBoundary() {
     _grid.boundarySDF.loop2D([&](std::size_t i, std::size_t j) {
                                  _grid.boundarySDF(i, j) = _objects->boundary.signedDistance(_grid.getWorldPos({ Float(i), Float(j) }));
                              });
@@ -66,7 +66,7 @@ void FEMSolver::initBoundary() {
                           });
 }
 
-void FEMSolver::generateParticles(const SDFObject& sdfObj, Float initialVelocity_y) {
+void MSSSolver::generateParticles(const SDFObject& sdfObj, Float initialVelocity_y) {
     using Distribution = std::uniform_real_distribution<Float>;
     const Float  rndScale = _particles.particleRadius * 0.5f;
     std::mt19937 gen(std::random_device{} ());
@@ -89,7 +89,7 @@ void FEMSolver::generateParticles(const SDFObject& sdfObj, Float initialVelocity
     _particles.addParticles(newParticles, initialVelocity_y);
 }
 
-void FEMSolver::addRepulsiveVelocity(const Vector2& p0, const Vector2& p1, Float dt, Float radius, Float magnitude) {
+void MSSSolver::addRepulsiveVelocity(const Vector2& p0, const Vector2& p1, Float dt, Float radius, Float magnitude) {
     Vector2     movingVel  = p1 - p0;
     const Float movingDist = movingVel.length();
     if(movingDist < _particles.particleRadius) {
@@ -133,7 +133,7 @@ void FEMSolver::addRepulsiveVelocity(const Vector2& p0, const Vector2& p1, Float
     }
 }
 
-void FEMSolver::advanceFrame(Float frameDuration) {
+void MSSSolver::advanceFrame(Float frameDuration) {
     Float frameTime = 0;
 
     while(frameTime < frameDuration) {
@@ -169,7 +169,7 @@ void FEMSolver::advanceFrame(Float frameDuration) {
     }
 }
 
-Float FEMSolver::timestepCFL() const {
+Float MSSSolver::timestepCFL() const {
     Float maxVel = 0;
     _grid.u.loop1D([&](std::size_t i) {
                        maxVel = Math::max(maxVel, Math::abs(_grid.u.data()[i]));
@@ -180,14 +180,14 @@ Float FEMSolver::timestepCFL() const {
     return maxVel > 0 ? _grid.cellSize / maxVel * 3.0f : 1.0f;
 }
 
-void FEMSolver::moveParticles(Float dt) {
+void MSSSolver::moveParticles(Float dt) {
     _particles.loopAll([&](UnsignedInt p) {
                            const Vector2 newPos    = _particles.positions[p] + _particles.velocities[p] * dt;
                            _particles.positions[p] = _grid.constrainBoundary(newPos);
                        });
 }
 
-void FEMSolver::collectParticlesToCells() {
+void MSSSolver::collectParticlesToCells() {
     _grid.cellParticles.loop1D([&](std::size_t i) {
                                    _grid.cellParticles.data()[i].resize(0);
                                });
@@ -198,7 +198,7 @@ void FEMSolver::collectParticlesToCells() {
                        });
 }
 
-void FEMSolver::particleVelocity2Grid() {
+void MSSSolver::particleVelocity2Grid() {
     _grid.u.loop2D([&](std::size_t i, std::size_t j) {
                        Float sumW = 0.0f;
                        Float sumU = 0.0f;
@@ -232,7 +232,7 @@ void FEMSolver::particleVelocity2Grid() {
                    });
 }
 
-void FEMSolver::extrapolate(Array2X<Float>& grid, Array2X<Float>& tmp_grid, Array2X<char>& valid, Array2X<char>& old_valid) const {
+void MSSSolver::extrapolate(Array2X<Float>& grid, Array2X<Float>& tmp_grid, Array2X<char>& valid, Array2X<char>& old_valid) const {
     tmp_grid  = grid;
     old_valid = valid;
 
@@ -276,7 +276,7 @@ void FEMSolver::extrapolate(Array2X<Float>& grid, Array2X<Float>& tmp_grid, Arra
     }
 }
 
-void FEMSolver::addGravity(Float dt) {
+void MSSSolver::addGravity(Float dt) {
     _grid.v.loop2D([&](std::size_t i, std::size_t j) {
                        if(_grid.vValid(i, j)) {
                            _grid.v(i, j) -= 9.81f * dt; /* gravity */
@@ -284,7 +284,7 @@ void FEMSolver::addGravity(Float dt) {
                    });
 }
 
-void FEMSolver::computeFluidSDF() {
+void MSSSolver::computeFluidSDF() {
     _grid.fluidSDF.assign(3 * _grid.cellSize);
 
     _particles.loopAll([&](UnsignedInt p) {
@@ -313,7 +313,7 @@ void FEMSolver::computeFluidSDF() {
                           });
 }
 
-void FEMSolver::solvePressures(Float dt) {
+void MSSSolver::solvePressures(Float dt) {
     const std::size_t nI       = std::size_t(_grid.nI);
     const std::size_t nJ       = std::size_t(_grid.nJ);
     const std::size_t numCells = nI * nJ;
@@ -418,7 +418,7 @@ void FEMSolver::solvePressures(Float dt) {
                    });
 }
 
-void FEMSolver::constrainVelocity() {
+void MSSSolver::constrainVelocity() {
     _grid.uTmp = _grid.u;
     _grid.vTmp = _grid.v;
 
@@ -453,7 +453,7 @@ void FEMSolver::constrainVelocity() {
     _grid.v.swapContent(_grid.vTmp);
 }
 
-void FEMSolver::relaxParticlePositions(Float dt) {
+void MSSSolver::relaxParticlePositions(Float dt) {
     const Float     restDist      = _grid.cellSize / Constants::sqrt2() * 1.1f;
     const Float     restDistSqr   = restDist * restDist;
     const Float     overlappedSqr = restDistSqr * 0.0001f;
@@ -486,7 +486,7 @@ void FEMSolver::relaxParticlePositions(Float dt) {
     _particles.positions.swap(_particles.tmp);
 }
 
-void FEMSolver::gridVelocity2Particle() {
+void MSSSolver::gridVelocity2Particle() {
     Array2X<Float>& u     = _grid.u;
     Array2X<Float>& v     = _grid.v;
     const auto      dxInv = _grid.invCellSize;

@@ -49,9 +49,9 @@
 #include "../motionblur/Icosphere.h"
 
 namespace Magnum { namespace Examples {
-class FEMSimulationExample : public Platform::Application {
+class ClothSimulationExample : public Platform::Application {
 public:
-    explicit FEMSimulationExample(const Arguments& arguments);
+    explicit ClothSimulationExample(const Arguments& arguments);
 
 protected:
     void viewportEvent(ViewportEvent& event) override;
@@ -81,12 +81,12 @@ protected:
 
 using namespace Math::Literals;
 
-FEMSimulationExample::FEMSimulationExample(const Arguments& arguments) : Platform::Application{arguments, NoCreate} {
+ClothSimulationExample::ClothSimulationExample(const Arguments& arguments) : Platform::Application{arguments, NoCreate} {
     /* Setup window */
     {
         const Vector2 dpiScaling = this->dpiScaling({});
         Configuration conf;
-        conf.setTitle("Magnum Finite Element Method (FEM) Simulation Example")
+        conf.setTitle("Magnum Mass-Spring System (MSS) Cloth Simulation Example")
             .setSize(conf.size(), dpiScaling)
             .setWindowFlags(Configuration::WindowFlag::Resizable);
         GLConfiguration glConf;
@@ -163,7 +163,7 @@ FEMSimulationExample::FEMSimulationExample(const Arguments& arguments) : Platfor
     setMinimalLoopPeriod(16);
 }
 
-void FEMSimulationExample::drawEvent() {
+void ClothSimulationExample::drawEvent() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
 
     if(!_pausedMotion) {
@@ -179,7 +179,7 @@ void FEMSimulationExample::drawEvent() {
     redraw();
 }
 
-void FEMSimulationExample::viewportEvent(ViewportEvent& event) {
+void ClothSimulationExample::viewportEvent(ViewportEvent& event) {
     /* Resize the main framebuffer */
     GL::defaultFramebuffer.setViewport({ {}, event.framebufferSize() });
     _arcballCamera->reshape(event.windowSize(), event.framebufferSize());
@@ -188,7 +188,7 @@ void FEMSimulationExample::viewportEvent(ViewportEvent& event) {
     _camera3D->setViewport(event.framebufferSize());
 }
 
-void FEMSimulationExample::keyPressEvent(KeyEvent& event) {
+void ClothSimulationExample::keyPressEvent(KeyEvent& event) {
     switch(event.key()) {
         case KeyEvent::Key::R:
             event.setAccepted(true);
@@ -201,7 +201,7 @@ void FEMSimulationExample::keyPressEvent(KeyEvent& event) {
     }
 }
 
-void FEMSimulationExample::mousePressEvent(MouseEvent& event) {
+void ClothSimulationExample::mousePressEvent(MouseEvent& event) {
     /* Enable mouse capture so the mouse can drag outside of the window */
     /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
     SDL_CaptureMouse(SDL_TRUE);
@@ -212,13 +212,13 @@ void FEMSimulationExample::mousePressEvent(MouseEvent& event) {
     redraw(); /* camera has changed, redraw! */
 }
 
-void FEMSimulationExample::mouseReleaseEvent(MouseEvent&) {
+void ClothSimulationExample::mouseReleaseEvent(MouseEvent&) {
     /* Disable mouse capture again */
     /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
     SDL_CaptureMouse(SDL_FALSE);
 }
 
-void FEMSimulationExample::mouseMoveEvent(MouseMoveEvent& event) {
+void ClothSimulationExample::mouseMoveEvent(MouseMoveEvent& event) {
     if(!event.buttons()) { return; }
 
     if(event.modifiers() & MouseMoveEvent::Modifier::Shift) {
@@ -229,7 +229,7 @@ void FEMSimulationExample::mouseMoveEvent(MouseMoveEvent& event) {
     redraw(); /* camera has changed, redraw! */
 }
 
-void FEMSimulationExample::mouseScrollEvent(MouseScrollEvent& event) {
+void ClothSimulationExample::mouseScrollEvent(MouseScrollEvent& event) {
     const Float delta = event.offset().y();
     if(Math::abs(delta) < 1.0e-2f) { return; }
 
@@ -240,4 +240,4 @@ void FEMSimulationExample::mouseScrollEvent(MouseScrollEvent& event) {
 }
 } }
 
-MAGNUM_APPLICATION_MAIN(Magnum::Examples::FEMSimulationExample)
+MAGNUM_APPLICATION_MAIN(Magnum::Examples::ClothSimulationExample)

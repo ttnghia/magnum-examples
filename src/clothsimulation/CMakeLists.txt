@@ -53,7 +53,8 @@ corrade_add_resource(ClothSimulation_RESOURCES resources.conf)
 
 add_executable(magnum-clothsimulation WIN32
     ClothSimulationExample.cpp
-    SolverData.h
+    Cloth.h
+    Cloth.cpp
     ClothSolver.h
     ClothSolver.cpp
     ${ClothSimulation_RESOURCES}

@@ -1,5 +1,5 @@
-#ifndef Magnum_Examples_FluidSimulation2D_FEMSolver_h
-#define Magnum_Examples_FluidSimulation2D_FEMSolver_h
+#ifndef Magnum_Examples_ClothSimulation_MSSSolver_h
+#define Magnum_Examples_ClothSimulation_MSSSolver_h
 /*
     This file is part of Magnum.
 
@@ -32,13 +32,12 @@
 
 #include <Corrade/Containers/Pointer.h>
 
-#include "SolverData.h"
+#include "Cloth.h"
 
 namespace Magnum { namespace Examples {
-/* 2D Affine Particle-in-Cell fluid solver */
-class FEMSolver {
+class MSSSolver {
 public:
-    explicit FEMSolver(const Vector2& origin, Float cellSize, Int Ni, Int Nj, SceneObjects* sceneObjs);
+    explicit MSSSolver(const Vector2& origin, Float cellSize, Int Ni, Int Nj, SceneObjects* sceneObjs);
 
     /* Manipulation */
     void reset() {
