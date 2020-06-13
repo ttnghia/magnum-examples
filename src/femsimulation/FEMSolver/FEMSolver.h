@@ -1,5 +1,5 @@
-#ifndef Magnum_Examples_FluidSimulation2D_ApicSolver2D_h
-#define Magnum_Examples_FluidSimulation2D_ApicSolver2D_h
+#ifndef Magnum_Examples_FluidSimulation2D_FEMSolver_h
+#define Magnum_Examples_FluidSimulation2D_FEMSolver_h
 /*
     This file is part of Magnum.
 
@@ -32,14 +32,13 @@
 
 #include <Corrade/Containers/Pointer.h>
 
-#include "FluidSolver/SolverData.h"
+#include "FEMSolver/SolverData.h"
 
 namespace Magnum { namespace Examples {
-
 /* 2D Affine Particle-in-Cell fluid solver */
-class ApicSolver2D {
+class FEMSolver {
 public:
-    explicit ApicSolver2D(const Vector2& origin, Float cellSize, Int Ni, Int Nj, SceneObjects* sceneObjs);
+    explicit FEMSolver(const Vector2& origin, Float cellSize, Int Ni, Int Nj, SceneObjects* sceneObjs);
 
     /* Manipulation */
     void reset() {
@@ -69,23 +68,22 @@ private:
 
     /* Simulation */
     Float timestepCFL() const;
-    void moveParticles(Float dt);
-    void collectParticlesToCells();
-    void particleVelocity2Grid();
-    void extrapolate(Array2X<Float>& grid, Array2X<Float>& tmp_grid, Array2X<char>& valid, Array2X<char>& old_valid) const;
-    void addGravity(Float dt);
-    void computeFluidSDF();
-    void solvePressures(Float dt);
-    void constrainVelocity();
-    void relaxParticlePositions(Float dt);
-    void gridVelocity2Particle();
+    void  moveParticles(Float dt);
+    void  collectParticlesToCells();
+    void  particleVelocity2Grid();
+    void  extrapolate(Array2X<Float>& grid, Array2X<Float>& tmp_grid, Array2X<char>& valid, Array2X<char>& old_valid) const;
+    void  addGravity(Float dt);
+    void  computeFluidSDF();
+    void  solvePressures(Float dt);
+    void  constrainVelocity();
+    void  relaxParticlePositions(Float dt);
+    void  gridVelocity2Particle();
 
     Containers::Pointer<SceneObjects> _objects;
-    ParticleData _particles;
-    GridData _grid;
+    ParticleData       _particles;
+    GridData           _grid;
     LinearSystemSolver _pressureSolver;
 };
-
-}}
+} }
 
 #endif

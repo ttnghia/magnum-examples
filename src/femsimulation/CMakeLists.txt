@@ -53,21 +53,12 @@ corrade_add_resource(FEMSimulation_RESOURCES resources.conf)
 
 add_executable(magnum-femsimulation WIN32
     FEMSimulationExample.cpp
-    DataStructures/Array2X.h
-    DataStructures/MathHelpers.h
-    DataStructures/PCGSolver.h
-    DataStructures/SDFObject.h
-    DataStructures/SparseMatrix.h
-    DrawableObjects/FlatShadeObject2D.h
-    DrawableObjects/ParticleGroup2D.h
-    DrawableObjects/ParticleGroup2D.cpp
-    DrawableObjects/WireframeObject2D.h
-    FluidSolver/SolverData.h
-    FluidSolver/ApicSolver2D.h
-    FluidSolver/ApicSolver2D.cpp
-    Shaders/ParticleSphereShader2D.h
-    Shaders/ParticleSphereShader2D.cpp
-    ${FEMSimulation_RESOURCES})
+    FEMSolver/SolverData.h
+    FEMSolver/FEMSolver.h
+    FEMSolver/FEMSolver.cpp
+    ${FEMSimulation_RESOURCES}
+    ../arcball/ArcBall.cpp
+    ../motionblur/Icosphere.cpp)
 target_link_libraries(magnum-femsimulation PRIVATE
     Corrade::Main
     Magnum::Application
