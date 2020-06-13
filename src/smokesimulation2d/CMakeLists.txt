@@ -61,6 +61,7 @@ file(GLOB_RECURSE Smoke2D_SOURCES ./SmokeSolver/*.cpp)
 
 
 add_executable(magnum-smokesimulation2d WIN32
+    Shaders/SmokeShaders2D.cpp
 #    SmokeSolver/SmokeSolver2D.cpp
     SmokeSimulation2DExample.cpp
     ../motionblur/Icosphere.cpp

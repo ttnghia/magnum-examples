@@ -32,6 +32,9 @@
 
 #include "Pez.h"
 
+#include <Magnum/Magnum.h>
+#include <Magnum/Math/Vector2.h>
+
 namespace Magnum { namespace Examples {
 typedef struct Surface_ {
     GLuint FboHandle;
@@ -43,11 +46,6 @@ typedef struct Slab_ {
     Surface Ping;
     Surface Pong;
 } Slab;
-
-typedef struct Vector2_ {
-    int X;
-    int Y;
-} Vector2;
 
 #define CellSize       (1.25f)
 #define ViewportWidth  (PEZ_VIEWPORT_WIDTH)
@@ -67,28 +65,35 @@ static const float   GradientScale          = 1.125f / CellSize;
 static const float   TemperatureDissipation = 0.99f;
 static const float   VelocityDissipation    = 0.99f;
 static const float   DensityDissipation     = 0.9999f;
-static const Vector2 ImpulsePosition        = { GridWidth / 2, -(int)SplatRadius / 2 };
+static const Vector2 ImpulsePosition        = Vector2 { GridWidth / 2, -(int)SplatRadius / 2 };
 
 static const int PositionSlot = 0;
 
-static GLuint  QuadVao;
-static GLuint  VisualizeProgram;
-static Slab    Velocity, Density, Pressure, Temperature;
-static Surface Divergence, Obstacles, HiresObstacles;
+class SmokeSolver2D {
+public:
+    GLuint  QuadVao;
+    GLuint  VisualizeProgram;
+    Slab    Velocity, Density, Pressure, Temperature;
+    Surface Divergence, Obstacles, HiresObstacles;
 
-GLuint  CreateQuad();
-GLuint  CreateProgram(const char* vsKey, const char* gsKey, const char* fsKey);
-Surface CreateSurface(GLsizei width, GLsizei height, int numComponents);
-Slab    CreateSlab(GLsizei width, GLsizei height, int numComponents);
-void    CreateObstacles(Surface dest, int width, int height);
-void    InitSlabOps();
-void    SwapSurfaces(Slab* slab);
-void    ClearSurface(Surface s, float value);
-void    Advect(Surface velocity, Surface source, Surface obstacles, Surface dest, float dissipation);
-void    Jacobi(Surface pressure, Surface divergence, Surface obstacles, Surface dest);
-void    SubtractGradient(Surface velocity, Surface pressure, Surface obstacles, Surface dest);
-void    ComputeDivergence(Surface velocity, Surface obstacles, Surface dest);
-void    ApplyImpulse(Surface dest, Vector2 position, float value);
-void    ApplyBuoyancy(Surface velocity, Surface temperature, Surface density, Surface dest);
+    void PezInitialize();
+    void PezUpdate();
+    void PezRender(GLuint windowFbo);
+private:
+    GLuint  CreateProgram(const char* vsKey, const char* gsKey, const char* fsKey);
+    Surface CreateSurface(GLsizei width, GLsizei height, int numComponents);
+    GLuint  CreateQuad();
+    Slab    CreateSlab(GLsizei width, GLsizei height, int numComponents);
+    void    CreateObstacles(Surface dest, int width, int height);
+    void    InitSlabOps();
+    void    SwapSurfaces(Slab* slab);
+    void    ClearSurface(Surface s, float value);
+    void    Advect(Surface velocity, Surface source, Surface obstacles, Surface dest, float dissipation);
+    void    Jacobi(Surface pressure, Surface divergence, Surface obstacles, Surface dest);
+    void    SubtractGradient(Surface velocity, Surface pressure, Surface obstacles, Surface dest);
+    void    ComputeDivergence(Surface velocity, Surface obstacles, Surface dest);
+    void    ApplyImpulse(Surface dest, Vector2 position, float value);
+    void    ApplyBuoyancy(Surface velocity, Surface temperature, Surface density, Surface dest);
+};
 } }
 #endif

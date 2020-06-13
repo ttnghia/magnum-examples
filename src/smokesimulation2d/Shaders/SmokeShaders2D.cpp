@@ -1,5 +1,3 @@
-#ifndef Magnum_Examples_FluidSimulation2D_ParticleSphereFlatShader_h
-#define Magnum_Examples_FluidSimulation2D_ParticleSphereFlatShader_h
 /*
     This file is part of Magnum.
 
@@ -30,40 +28,33 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <Magnum/GL/AbstractShaderProgram.h>
+#include "Shaders/SmokeShaders2D.h"
+
+#include <Corrade/Containers/Reference.h>
+#include <Corrade/Utility/Resource.h>
+#include <Magnum/GL/Shader.h>
+#include <Magnum/GL/Version.h>
+#include <Magnum/Math/Color.h>
+#include <Magnum/Math/Matrix3.h>
 
 namespace Magnum { namespace Examples {
+FillTextureShader::FillTextureShader() {
+    Utility::Resource rs("data");
 
-class ParticleSphereShader2D: public GL::AbstractShaderProgram {
-    public:
-        enum ColorMode {
-            UniformDiffuseColor = 0,
-            RampColorById
-        };
+    GL::Shader vertShader{ GL::Version::GL330, GL::Shader::Type::Vertex };
+    GL::Shader fragShader{ GL::Version::GL330, GL::Shader::Type::Fragment };
+    vertShader.addSource(rs.get("ParticleSphereShader2D.vert"));
+    fragShader.addSource(rs.get("ParticleSphereShader2D.frag"));
 
-        explicit ParticleSphereShader2D();
+    CORRADE_INTERNAL_ASSERT(GL::Shader::compile({ vertShader, fragShader }));
+    attachShaders({ vertShader, fragShader });
+    CORRADE_INTERNAL_ASSERT(link());
 
-        ParticleSphereShader2D& setNumParticles(Int numParticles);
-        ParticleSphereShader2D& setParticleRadius(Float radius);
+    _uNumParticles = uniformLocation("numParticles");
+}
 
-        ParticleSphereShader2D& setColorMode(Int colorMode);
-        ParticleSphereShader2D& setColor(const Color3& color);
-
-        ParticleSphereShader2D& setViewport(const Vector2i& viewport);
-        ParticleSphereShader2D& setViewProjectionMatrix(const Matrix3& matrix);
-        ParticleSphereShader2D& setScreenHeight(Int height);
-        ParticleSphereShader2D& setDomainHeight(Int height);
-
-    private:
-        Int _uNumParticles,
-            _uParticleRadius,
-            _uColorMode,
-            _uColor,
-            _uViewProjectionMatrix,
-            _uScreenHeight,
-            _uDomainHeight;
-};
-
-}}
-
-#endif
+FillTextureShader& FillTextureShader::setNumParticles(Int numParticles) {
+    setUniform(_uNumParticles, numParticles);
+    return *this;
+}
+} }

@@ -47,6 +47,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <Pez.h>
+#include "SmokeSolver/SmokeSolver2D.h"
 
 namespace Magnum { namespace Examples {
 class SmokeSimulation2DExample : public Platform::Application {
@@ -71,6 +72,8 @@ protected:
     Containers::Pointer<Object3D>             _objCamera3D;
     Containers::Pointer<SceneGraph::Camera3D> _camera3D;
 
+    Containers::Pointer<SmokeSolver2D> _smokeSolver;
+
     bool _pausedMotion = false;
 };
 
@@ -81,7 +84,7 @@ SmokeSimulation2DExample::SmokeSimulation2DExample(const Arguments& arguments) :
     {
         const Vector2 dpiScaling = this->dpiScaling({});
         Configuration conf;
-        conf.setTitle("Magnum Octree Example")
+        conf.setTitle("Magnum Smoke Simulation 2D Example")
             .setSize(conf.size(), dpiScaling)
             .setWindowFlags(Configuration::WindowFlag::Resizable);
         GLConfiguration glConf;
@@ -117,13 +120,15 @@ SmokeSimulation2DExample::SmokeSimulation2DExample(const Arguments& arguments) :
     /* Explicitly disable depth test */
     GL::Renderer::disable(GL::Renderer::Feature::DepthTest);
 
+    _smokeSolver.emplace();
+    _smokeSolver->PezInitialize();
     {
         /* Entering a section with 3rd-party OpenGL code -- clean up all state that
            could cause accidental modifications of our objects from outside */
         //        GL::Context::current().resetState(GL::Context::State::EnterExternal);
 
         /* Raw OpenGL calls */
-        const char* szWindowTitle = PezInitialize(PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
+        // PezInitialize(PEZ_VIEWPORT_WIDTH, PEZ_VIEWPORT_HEIGHT);
         // ...
 
         /* Exiting a section with 3rd-party OpenGL code -- reset our state tracker */
@@ -142,8 +147,8 @@ void SmokeSimulation2DExample::drawEvent() {
         //
     }
 
-    PezUpdate((unsigned int)0);
-    PezRender(0);
+    _smokeSolver->PezUpdate();
+    _smokeSolver->PezRender(0);
 
     //    _arcballCamera->update();
     //    _arcballCamera->draw(*_drawables);

@@ -3,24 +3,6 @@
 using namespace Magnum;
 
 namespace Magnum { namespace Examples {
-#define TwoPi (6.28318531f)
-#define Pi    (3.14159265f)
-#define countof(A) (sizeof(A) / sizeof(A[0]))
-
-// Implemented by the demo:
-const char* PezInitialize(int width, int height);     // receive window size and return window title
-void        PezRender(unsigned int fbo);              // draw scene (Pez swaps the backbuffer for you)
-void        PezUpdate(unsigned int microseconds);     // receive elapsed time (e.g., update physics)
-void        PezHandleMouse(int x, int y, int action); // handle mouse action specified by bitfield
-
-enum MouseFlag {
-    PEZ_DOWN  = 1 << 0,
-    PEZ_UP    = 1 << 1,
-    PEZ_MOVE  = 1 << 2,
-    PEZ_LEFT  = 1 << 3,
-    PEZ_RIGHT = 1 << 4,
-};
-
 // Implemented by the platform layer:
 const char* PezResourcePath();
 void        PezDebugString(const char* pStr, ...);

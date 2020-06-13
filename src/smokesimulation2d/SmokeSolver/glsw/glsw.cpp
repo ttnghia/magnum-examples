@@ -14,16 +14,14 @@
 ///////////////////////////////////////////////////////////////////////////////
 // PRIVATE TYPES
 
-typedef struct glswListRec
-{
-    bstring Key;
-    bstring Value;
+typedef struct glswListRec {
+    bstring             Key;
+    bstring             Value;
     struct glswListRec* Next;
 } glswList;
 
-typedef struct glswContextRec
-{
-    bstring ErrorMessage;
+typedef struct glswContextRec {
+    bstring   ErrorMessage;
     glswList* TokenMap;
     glswList* ShaderMap;
     glswList* LoadedEffects;
@@ -38,8 +36,7 @@ static glswContext* __glsw__Context = 0;
 ///////////////////////////////////////////////////////////////////////////////
 // PRIVATE FUNCTIONS
 
-static int __glsw__Alphanumeric(char c)
-{
+static int __glsw__Alphanumeric(char c) {
     return
         (c >= 'A' && c <= 'Z') ||
         (c >= 'a' && c <= 'z') ||
@@ -47,10 +44,8 @@ static int __glsw__Alphanumeric(char c)
         c == '_' || c == '.';
 }
 
-static void __glsw__FreeList(glswList* pNode)
-{
-    while (pNode)
-    {
+static void __glsw__FreeList(glswList* pNode) {
+    while(pNode) {
         glswList* pNext = pNode->Next;
         bdestroy(pNode->Key);
         bdestroy(pNode->Value);
@@ -59,45 +54,41 @@ static void __glsw__FreeList(glswList* pNode)
     }
 }
 
-static bstring __glsw__LoadEffectContents(glswContext* gc, bstring effectName)
-{
-    FILE* fp = 0;
-    bstring effectFile, effectContents;
+static bstring __glsw__LoadEffectContents(glswContext* gc, bstring effectName) {
+    FILE*     fp = 0;
+    bstring   effectFile, effectContents;
     glswList* pPathList = gc->PathList;
-    
-    while (pPathList)
-    {
+
+    while(pPathList) {
         effectFile = bstrcpy(effectName);
         binsert(effectFile, 0, pPathList->Key, '?');
         bconcat(effectFile, pPathList->Value);
 
-        fp = fopen((const char*) effectFile->data, "rb");
-        if (fp)
-        {
+        fp = fopen((const char*)effectFile->data, "rb");
+        if(fp) {
             break;
         }
-            
+
         pPathList = pPathList->Next;
     }
 
-    if (!fp)
-    {
+    if(!fp) {
         bdestroy(gc->ErrorMessage);
         gc->ErrorMessage = bformat("Unable to open effect file '%s'.", effectFile->data);
         bdestroy(effectFile);
         return 0;
     }
-    
+
     // Add a new entry to the front of gc->LoadedEffects
     {
         glswList* temp = gc->LoadedEffects;
-        gc->LoadedEffects = (glswList*) calloc(sizeof(glswList), 1);
-        gc->LoadedEffects->Key = bstrcpy(effectName);
+        gc->LoadedEffects       = (glswList*)calloc(sizeof(glswList), 1);
+        gc->LoadedEffects->Key  = bstrcpy(effectName);
         gc->LoadedEffects->Next = temp;
     }
-    
+
     // Read in the effect file
-    effectContents = bread((bNread) fread, fp);
+    effectContents = bread((bNread)fread, fp);
     fclose(fp);
     bdestroy(effectFile);
     return effectContents;
@@ -106,28 +97,24 @@ static bstring __glsw__LoadEffectContents(glswContext* gc, bstring effectName)
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS
 
-int glswInit()
-{
-    if (__glsw__Context)
-    {
+int glswInit() {
+    if(__glsw__Context) {
         bdestroy(__glsw__Context->ErrorMessage);
         __glsw__Context->ErrorMessage = bfromcstr("Already initialized.");
         return 0;
     }
 
-    __glsw__Context = (glswContext*) calloc(sizeof(glswContext), 1);
-    
+    __glsw__Context = (glswContext*)calloc(sizeof(glswContext), 1);
+
     glswAddPath("", "");
 
     return 1;
 }
 
-int glswShutdown()
-{
+int glswShutdown() {
     glswContext* gc = __glsw__Context;
 
-    if (!gc)
-    {
+    if(!gc) {
         return 0;
     }
 
@@ -144,46 +131,41 @@ int glswShutdown()
     return 1;
 }
 
-int glswAddPath(const char* pathPrefix, const char* pathSuffix)
-{
+int glswAddPath(const char* pathPrefix, const char* pathSuffix) {
     glswContext* gc = __glsw__Context;
-    glswList* temp;
+    glswList*    temp;
 
-    if (!gc)
-    {
+    if(!gc) {
         return 0;
     }
 
-    temp = gc->PathList;
-    gc->PathList = (glswList*) calloc(sizeof(glswList), 1);
-    gc->PathList->Key = bfromcstr(pathPrefix);
+    temp                = gc->PathList;
+    gc->PathList        = (glswList*)calloc(sizeof(glswList), 1);
+    gc->PathList->Key   = bfromcstr(pathPrefix);
     gc->PathList->Value = bfromcstr(pathSuffix);
-    gc->PathList->Next = temp;
+    gc->PathList->Next  = temp;
 
     return 1;
 }
 
-const char* glswGetShader(const char* pEffectKey)
-{
-    glswContext* gc = __glsw__Context;
-    bstring effectKey;
-    glswList* closestMatch = 0;
+const char* glswGetShader(const char* pEffectKey) {
+    glswContext*     gc = __glsw__Context;
+    bstring          effectKey;
+    glswList*        closestMatch = 0;
     struct bstrList* tokens;
-    bstring effectName;
-    glswList* pLoadedEffect;
-    glswList* pShaderEntry;
-    bstring shaderKey = 0;
+    bstring          effectName;
+    glswList*        pLoadedEffect;
+    glswList*        pShaderEntry;
+    bstring          shaderKey = 0;
 
-    if (!gc)
-    {
+    if(!gc) {
         return 0;
     }
 
     // Extract the effect name from the effect key
     effectKey = bfromcstr(pEffectKey);
-    tokens = bsplit(effectKey, '.');
-    if (!tokens || !tokens->qty)
-    {
+    tokens    = bsplit(effectKey, '.');
+    if(!tokens || !tokens->qty) {
         bdestroy(gc->ErrorMessage);
         gc->ErrorMessage = bformat("Malformed effect key key '%s'.", pEffectKey);
         bstrListDestroy(tokens);
@@ -194,59 +176,47 @@ const char* glswGetShader(const char* pEffectKey)
 
     // Check if we already loaded this effect file
     pLoadedEffect = gc->LoadedEffects;
-    while (pLoadedEffect)
-    {
-        if (1 == biseq(pLoadedEffect->Key, effectName))
-        {
+    while(pLoadedEffect) {
+        if(1 == biseq(pLoadedEffect->Key, effectName)) {
             break;
         }
         pLoadedEffect = pLoadedEffect->Next;
     }
 
     // If we haven't loaded this file yet, load it in
-    if (!pLoadedEffect)
-    {
-        bstring effectContents = __glsw__LoadEffectContents(gc, effectName);
-        struct bstrList* lines = bsplit(effectContents, '\n');
-        int lineNo;
+    if(!pLoadedEffect) {
+        bstring          effectContents = __glsw__LoadEffectContents(gc, effectName);
+        struct bstrList* lines          = bsplit(effectContents, '\n');
+        int              lineNo;
 
         bdestroy(effectContents);
         effectContents = 0;
 
-        for (lineNo = 0; lines && lineNo < lines->qty; lineNo++)
-        {
+        for(lineNo = 0; lines && lineNo < lines->qty; lineNo++) {
             bstring line = lines->entry[lineNo];
 
             // If the line starts with "--", then it marks a new section
-            if (blength(line) >= 2 && line->data[0] == '-' && line->data[1] == '-')
-            {
+            if(blength(line) >= 2 && line->data[0] == '-' && line->data[1] == '-') {
                 // Find the first character in [A-Za-z0-9_].
                 int colNo;
-                for (colNo = 2; colNo < blength(line); colNo++)
-                {
+                for(colNo = 2; colNo < blength(line); colNo++) {
                     char c = line->data[colNo];
-                    if (__glsw__Alphanumeric(c))
-                    {
+                    if(__glsw__Alphanumeric(c)) {
                         break;
                     }
                 }
 
                 // If there's no alphanumeric character,
                 // then this marks the start of a new comment block.
-                if (colNo >= blength(line))
-                {
+                if(colNo >= blength(line)) {
                     bdestroy(shaderKey);
                     shaderKey = 0;
-                }
-                else
-                {
+                } else {
                     // Keep reading until a non-alphanumeric character is found.
                     int endCol;
-                    for (endCol = colNo; endCol < blength(line); endCol++)
-                    {
+                    for(endCol = colNo; endCol < blength(line); endCol++) {
                         char c = line->data[endCol];
-                        if (!__glsw__Alphanumeric(c))
-                        {
+                        if(!__glsw__Alphanumeric(c)) {
                             break;
                         }
                     }
@@ -257,9 +227,9 @@ const char* glswGetShader(const char* pEffectKey)
                     // Add a new entry to the shader map.
                     {
                         glswList* temp = gc->ShaderMap;
-                        gc->ShaderMap = (glswList*) calloc(sizeof(glswList), 1);
-                        gc->ShaderMap->Key = bstrcpy(shaderKey);
-                        gc->ShaderMap->Next = temp;
+                        gc->ShaderMap        = (glswList*)calloc(sizeof(glswList), 1);
+                        gc->ShaderMap->Key   = bstrcpy(shaderKey);
+                        gc->ShaderMap->Next  = temp;
                         gc->ShaderMap->Value = bformat("#line %d\n", lineNo);
 
                         binsertch(gc->ShaderMap->Key, 0, 1, '.');
@@ -267,32 +237,27 @@ const char* glswGetShader(const char* pEffectKey)
                     }
 
                     // Check for a version mapping.
-                    if (gc->TokenMap)
-                    {
-                        struct bstrList* tokens = bsplit(shaderKey, '.');
-                        glswList* pTokenMapping = gc->TokenMap;
+                    if(gc->TokenMap) {
+                        struct bstrList* tokens        = bsplit(shaderKey, '.');
+                        glswList*        pTokenMapping = gc->TokenMap;
 
-                        while (pTokenMapping)
-                        {
+                        while(pTokenMapping) {
                             bstring directive = 0;
-                            int tokenIndex;
+                            int     tokenIndex;
 
                             // An empty key in the token mapping means "always prepend this directive".
                             // The effect name itself is also checked against the token mapping.
-                            if (0 == blength(pTokenMapping->Key) ||
-                                (1 == blength(pTokenMapping->Key) && '*' == bchar(pTokenMapping->Key, 0)) ||
-                                1 == biseq(pTokenMapping->Key, effectName))
-                            {
+                            if(0 == blength(pTokenMapping->Key) ||
+                               (1 == blength(pTokenMapping->Key) && '*' == bchar(pTokenMapping->Key, 0)) ||
+                               1 == biseq(pTokenMapping->Key, effectName)) {
                                 directive = pTokenMapping->Value;
                                 binsert(gc->ShaderMap->Value, 0, directive, '?');
                             }
 
                             // Check all tokens in the current section divider for a mapped token.
-                            for (tokenIndex = 0; tokenIndex < tokens->qty && !directive; tokenIndex++)
-                            {
+                            for(tokenIndex = 0; tokenIndex < tokens->qty && !directive; tokenIndex++) {
                                 bstring token = tokens->entry[tokenIndex];
-                                if (1 == biseq(pTokenMapping->Key, token))
-                                {
+                                if(1 == biseq(pTokenMapping->Key, token)) {
                                     directive = pTokenMapping->Value;
                                     binsert(gc->ShaderMap->Value, 0, directive, '?');
                                 }
@@ -307,8 +272,7 @@ const char* glswGetShader(const char* pEffectKey)
 
                 continue;
             }
-            if (shaderKey)
-            {
+            if(shaderKey) {
                 bconcat(gc->ShaderMap->Value, line);
                 bconchar(gc->ShaderMap->Value, '\n');
             }
@@ -322,11 +286,9 @@ const char* glswGetShader(const char* pEffectKey)
     // Find the longest matching shader key
     pShaderEntry = gc->ShaderMap;
 
-    while (pShaderEntry)
-    {
-        if (binstr(effectKey, 0, pShaderEntry->Key) == 0 &&
-            (!closestMatch || blength(pShaderEntry->Key) > blength(closestMatch->Key)))
-        {
+    while(pShaderEntry) {
+        if(binstr(effectKey, 0, pShaderEntry->Key) == 0 &&
+           (!closestMatch || blength(pShaderEntry->Key) > blength(closestMatch->Key))) {
             closestMatch = pShaderEntry;
         }
 
@@ -336,43 +298,38 @@ const char* glswGetShader(const char* pEffectKey)
     bstrListDestroy(tokens);
     bdestroy(effectKey);
 
-    if (!closestMatch)
-    {
+    if(!closestMatch) {
         bdestroy(gc->ErrorMessage);
         gc->ErrorMessage = bformat("Could not find shader with key '%s'.", pEffectKey);
         return 0;
     }
 
-    return (const char*) closestMatch->Value->data;
+    return (const char*)closestMatch->Value->data;
 }
 
-const char* glswGetError()
-{
+const char* glswGetError() {
     glswContext* gc = __glsw__Context;
 
-    if (!gc)
-    {
+    if(!gc) {
         return "The glsw API has not been initialized.";
     }
 
-    return (const char*) (gc->ErrorMessage ? gc->ErrorMessage->data : 0);
+    return (const char*)(gc->ErrorMessage ? gc->ErrorMessage->data : 0);
 }
 
-int glswAddDirective(const char* token, const char* directive)
-{
+int glswAddDirective(const char* token, const char* directive) {
     glswContext* gc = __glsw__Context;
-    glswList* temp;
+    glswList*    temp;
 
-    if (!gc)
-    {
+    if(!gc) {
         return 0;
     }
 
-    temp = gc->TokenMap;
-    gc->TokenMap = (glswList*) calloc(sizeof(glswList), 1);
-    gc->TokenMap->Key = bfromcstr(token);
+    temp                = gc->TokenMap;
+    gc->TokenMap        = (glswList*)calloc(sizeof(glswList), 1);
+    gc->TokenMap->Key   = bfromcstr(token);
     gc->TokenMap->Value = bfromcstr(directive);
-    gc->TokenMap->Next = temp;
+    gc->TokenMap->Next  = temp;
 
     bconchar(gc->TokenMap->Value, '\n');
 
