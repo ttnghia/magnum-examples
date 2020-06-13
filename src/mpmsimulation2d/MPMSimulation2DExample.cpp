@@ -41,7 +41,6 @@
 #include <Magnum/MeshTools/Compile.h>
 #include <Magnum/Platform/Sdl2Application.h>
 #include <Magnum/Primitives/Square.h>
-#include <Magnum/Primitives/Circle.h>
 #include <Magnum/SceneGraph/Camera.h>
 #include <Magnum/SceneGraph/Drawable.h>
 #include <Magnum/SceneGraph/MatrixTransformation3D.h>
@@ -97,14 +96,6 @@ protected:
     Int   _numEmission        = 0.0f;
     bool  _bAutoEmitParticles = true;
     bool  _pausedSimulation   = false;
-
-    /* Mouse-Fluid interaction */
-    Containers::Pointer<WireframeObject2D> _drawablePointer;
-    Timeline _timeline;
-    Vector2  _lastMousePressedWorldPos;
-    Float    _mouseInteractionRadius    = 5.0f;
-    Float    _mouseInteractionMagnitude = 5.0f;
-    bool     _bMouseInteraction         = true;
 };
 
 namespace {
@@ -196,12 +187,6 @@ MPMSimulation2DExample::MPMSimulation2DExample(const Arguments& arguments) : Pla
                                   MeshTools::compile(Primitives::squareWireframe()));
         _drawableBoundary->setTransformation(Matrix3::scaling(Vector2{ RadiusCircleBoundary + _fluidSolver->particleRadius() }));
         _drawableBoundary->setColor(0xffffff_rgbf);
-
-        /* Visualize mouse pointer for mouse-fluid interaction */
-        _drawablePointer.emplace(_scene.get(), _drawableGroup.get(),
-                                 MeshTools::compile(Primitives::circle2DWireframe(32)));
-        _drawablePointer->setColor(0x00ff00_rgbf);
-        _drawablePointer->setEnabled(false);
     }
 
     /* Enable depth test, render particles as sprites */
@@ -211,7 +196,6 @@ MPMSimulation2DExample::MPMSimulation2DExample(const Arguments& arguments) : Pla
     /* Start the timer, loop at 60 Hz max */
     setSwapInterval(1);
     setMinimalLoopPeriod(16);
-    _timeline.start();
 }
 
 void MPMSimulation2DExample::drawEvent() {
@@ -327,26 +311,11 @@ void MPMSimulation2DExample::mousePressEvent(MouseEvent& event) {
         event.setAccepted(true);
         return;
     }
-
-    _lastMousePressedWorldPos = windowPos2WorldPos(event.position());
-    if(_bMouseInteraction) {
-        _timeline.nextFrame();
-        _drawablePointer->setEnabled(true);
-        _drawablePointer->setTransformation(
-            Matrix3::translation(_lastMousePressedWorldPos) *
-            Matrix3::scaling(Vector2{ _mouseInteractionRadius }));
-        event.setAccepted();
-    }
 }
 
 void MPMSimulation2DExample::mouseReleaseEvent(MouseEvent& event) {
     if(_imGuiContext.handleMouseReleaseEvent(event)) {
         event.setAccepted(true);
-    }
-
-    if(_bMouseInteraction) {
-        _drawablePointer->setEnabled(false);
-        event.setAccepted();
     }
 }
 
@@ -354,24 +323,6 @@ void MPMSimulation2DExample::mouseMoveEvent(MouseMoveEvent& event) {
     if(_imGuiContext.handleMouseMoveEvent(event)) {
         event.setAccepted(true);
         return;
-    }
-
-    if(!event.buttons()) { return; }
-
-    const Vector2 currentPos = windowPos2WorldPos(event.position());
-    if(_bMouseInteraction) {
-        _timeline.nextFrame();
-        const auto dt = _timeline.previousFrameDuration();
-        if(dt > 1e-4f) {
-            _fluidSolver->addRepulsiveVelocity(_lastMousePressedWorldPos,
-                                               currentPos, dt, _mouseInteractionRadius,
-                                               _mouseInteractionMagnitude * 0.01f);
-            _drawablePointer->setTransformation(
-                Matrix3::translation(currentPos) *
-                Matrix3::scaling(Vector2{ _mouseInteractionRadius }));
-            event.setAccepted();
-        }
-        _lastMousePressedWorldPos = currentPos;
     }
 }
 
@@ -436,15 +387,6 @@ void MPMSimulation2DExample::showMenu() {
         ImGui::InputFloat("Speed", &_speed);
         ImGui::Checkbox("Auto emit particles 5 times", &_bAutoEmitParticles);
         ImGui::PopItemWidth();
-        ImGui::BeginGroup();
-        ImGui::Checkbox("Mouse interaction", &_bMouseInteraction);
-        if(_bMouseInteraction) {
-            ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
-            ImGui::SliderFloat("Radius",    &_mouseInteractionRadius,    1.0f, 10.0f);
-            ImGui::SliderFloat("Magnitude", &_mouseInteractionMagnitude, 1.0f, 10.0f);
-            ImGui::PopItemWidth();
-        }
-        ImGui::EndGroup();
         ImGui::PopID();
         ImGui::TreePop();
     }
