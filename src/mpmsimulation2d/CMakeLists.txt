@@ -62,9 +62,9 @@ add_executable(magnum-mpmsimulation2d WIN32
     DrawableObjects/ParticleGroup2D.h
     DrawableObjects/ParticleGroup2D.cpp
     DrawableObjects/WireframeObject2D.h
-    FluidSolver/SolverData.h
-    FluidSolver/ApicSolver2D.h
-    FluidSolver/ApicSolver2D.cpp
+    MPMSolver/SolverData.h
+    MPMSolver/MPMSolver2D.h
+    MPMSolver/MPMSolver2D.cpp
     Shaders/ParticleSphereShader2D.h
     Shaders/ParticleSphereShader2D.cpp
     ${MPMSimulation2D_RESOURCES})
