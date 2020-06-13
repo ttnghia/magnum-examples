@@ -39,6 +39,7 @@
 #include <Magnum/GL/Version.h>
 #include <Magnum/ImageView.h>
 #include <Magnum/Math/Color.h>
+#include <Magnum/MeshTools/CompressIndices.h>
 #include <Magnum/PixelFormat.h>
 #include <Magnum/Platform/Sdl2Application.h>
 #include <Magnum/SceneGraph/Camera.h>
@@ -164,14 +165,24 @@ ClothSimulationExample::ClothSimulationExample(const Arguments& arguments) :
 
     /* Setup cloth rendering */
     GL::Buffer                         buffer;
-    Containers::ArrayView<const float> data(reinterpret_cast<const Float*>(_clothSolver.getCloth().positions.data()),
-                                            _clothSolver.getCloth().getNumVertices() * 3);
+    Containers::ArrayView<const Float> data(
+        reinterpret_cast<const Float*>(_clothSolver.getCloth().positions.data()),
+        _clothSolver.getCloth().getNumVertices() * 3 * sizeof(Float));
     buffer.setData(data, GL::BufferUsage::DynamicDraw);
 
+    Containers::ArrayView<const UnsignedInt> indexData(
+        reinterpret_cast<const UnsignedInt*>(_clothSolver.getCloth().faces.data()),
+        _clothSolver.getCloth().faces.size() * 3 * sizeof(UnsignedInt));
+    std::pair<Containers::Array<char>, MeshIndexType> compressed =
+        MeshTools::compressIndices(indexData);
+    GL::Buffer indices;
+    indices.setData(compressed.first);
+
     _mesh = GL::Mesh{};
-    _mesh.setCount(_clothSolver.getCloth().getNumVertices())
+    _mesh.setCount(_clothSolver.getCloth().faces.size() * 3)
         .addVertexBuffer(std::move(buffer), 0,
-                         Shaders::Generic3D::Position{});
+                         Shaders::Generic3D::Position{})
+        .setIndexBuffer(std::move(indices), 0, compressed.second);
 
     const auto     map = DebugTools::ColorMap::turbo();
     const Vector2i size{ Int(map.size()), 1 };
@@ -195,14 +206,11 @@ ClothSimulationExample::ClothSimulationExample(const Arguments& arguments) :
         .bindColorMapTexture(_colormap);
 
     auto object = new Object3D{ _scene.get() };
-    (*object)
-        .rotateY(40.0_degf)
-        .rotateX(-30.0_degf)
-    ;
     new VisualizationDrawable{ *object, _shader, _mesh, *_drawables.get() };
+    //    new FlatDrawable{ *object, _shaderFlat, _mesh, *_drawables.get() };
 
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
-    GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
+    GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
 
     /* Start the timer, loop at 60 Hz max */
     setSwapInterval(1);
