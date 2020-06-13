@@ -33,6 +33,7 @@
 #include <Magnum/GL/Renderer.h>
 #include <Magnum/GL/Context.h>
 #include <Magnum/GL/Version.h>
+#include <Magnum/ImGuiIntegration/Context.hpp>
 #include <Magnum/Math/Color.h>
 #include <Magnum/Platform/Sdl2Application.h>
 #include <Magnum/SceneGraph/Camera.h>
@@ -57,11 +58,22 @@ public:
 protected:
     void viewportEvent(ViewportEvent& event) override;
     void keyPressEvent(KeyEvent& event) override;
+    void keyReleaseEvent(KeyEvent& event) override;
     void drawEvent() override;
     void mousePressEvent(MouseEvent& event) override;
     void mouseReleaseEvent(MouseEvent& event) override;
     void mouseMoveEvent(MouseMoveEvent& event) override;
     void mouseScrollEvent(MouseScrollEvent& event) override;
+    void textInputEvent(TextInputEvent& event) override;
+
+    /* Window control */
+    void showMenu();
+
+    /* Simulation loop */
+    void resetSimulation();
+
+    bool _showMenu = true;
+    ImGuiIntegration::Context _imGuiContext{ NoCreate };
 
     /* Scene and drawable group must be constructed before camera and other
        drawble objects */
@@ -94,6 +106,29 @@ SmokeSimulation2DExample::SmokeSimulation2DExample(const Arguments& arguments) :
         }
     }
 
+    /* Setup ImGui, load a better font */
+    {
+        ImGui::CreateContext();
+        ImGui::StyleColorsDark();
+
+        ImFontConfig fontConfig;
+        fontConfig.FontDataOwnedByAtlas = false;
+        const Vector2                     size = Vector2{ windowSize() } / dpiScaling();
+        Utility::Resource                 rs{ "data" };
+        Containers::ArrayView<const char> font = rs.getRaw("SourceSansPro-Regular.ttf");
+        ImGui::GetIO().Fonts->AddFontFromMemoryTTF(
+            const_cast<char*>(font.data()), Int(font.size()),
+            16.0f * framebufferSize().x() / size.x(), &fontConfig);
+
+        _imGuiContext = ImGuiIntegration::Context{ *ImGui::GetCurrentContext(),
+                                                   Vector2{ windowSize() } / dpiScaling(), windowSize(), framebufferSize() };
+
+        /* Setup proper blending to be used by ImGui */
+        GL::Renderer::setBlendFunction(
+            GL::Renderer::BlendFunction::SourceAlpha,
+            GL::Renderer::BlendFunction::OneMinusSourceAlpha);
+    }
+
     /* Setup scene objects and camera */
     {
         /* Setup scene objects */
@@ -122,6 +157,9 @@ SmokeSimulation2DExample::SmokeSimulation2DExample(const Arguments& arguments) :
 
     _smokeSolver.emplace();
     _smokeSolver->PezInitialize();
+    //GL::Renderer::setClearColor(Color4(1, 1, 1, 1));
+    // GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth)
+    //     .bind();
     {
         /* Entering a section with 3rd-party OpenGL code -- clean up all state that
            could cause accidental modifications of our objects from outside */
@@ -142,6 +180,16 @@ SmokeSimulation2DExample::SmokeSimulation2DExample(const Arguments& arguments) :
 
 void SmokeSimulation2DExample::drawEvent() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
+    GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth)
+        .bind();
+    _imGuiContext.newFrame();
+
+    /* Enable text input, if needed */
+    if(ImGui::GetIO().WantTextInput && !isTextInputActive()) {
+        startTextInput();
+    } else if(!ImGui::GetIO().WantTextInput && isTextInputActive()) {
+        stopTextInput();
+    }
 
     if(!_pausedMotion) {
         //
@@ -150,8 +198,24 @@ void SmokeSimulation2DExample::drawEvent() {
     _smokeSolver->PezUpdate();
     _smokeSolver->PezRender(0);
 
-    //    _arcballCamera->update();
-    //    _arcballCamera->draw(*_drawables);
+    /* Menu for parameters */
+    if(_showMenu) { showMenu(); }
+
+    /* Update application cursor */
+    _imGuiContext.updateApplicationCursor(*this);
+
+    /* Render ImGui window */
+    {
+        GL::Renderer::enable(GL::Renderer::Feature::Blending);
+        GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
+        GL::Renderer::enable(GL::Renderer::Feature::ScissorTest);
+
+        //        _imGuiContext.drawFrame();
+
+        GL::Renderer::disable(GL::Renderer::Feature::ScissorTest);
+        GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
+        GL::Renderer::disable(GL::Renderer::Feature::Blending);
+    }
 
     swapBuffers();
     /* Run next frame immediately */
@@ -161,7 +225,9 @@ void SmokeSimulation2DExample::drawEvent() {
 void SmokeSimulation2DExample::viewportEvent(ViewportEvent& event) {
     /* Resize the main framebuffer */
     GL::defaultFramebuffer.setViewport({ {}, event.framebufferSize() });
-    //    _arcballCamera->reshape(event.windowSize(), event.framebufferSize());
+
+    /* Relayout ImGui */
+    _imGuiContext.relayout(Vector2{ event.windowSize() } / event.dpiScaling(), event.windowSize(), event.framebufferSize());
 
     /* Recompute the camera's projection matrix */
     _camera3D->setViewport(event.framebufferSize());
@@ -176,7 +242,17 @@ void SmokeSimulation2DExample::keyPressEvent(KeyEvent& event) {
             _pausedMotion ^= true;
             event.setAccepted(true);
             break;
-        default:;
+        default:
+            if(_imGuiContext.handleKeyPressEvent(event)) {
+                event.setAccepted(true);
+            }
+    }
+}
+
+void SmokeSimulation2DExample::keyReleaseEvent(KeyEvent& event) {
+    if(_imGuiContext.handleKeyReleaseEvent(event)) {
+        event.setAccepted(true);
+        return;
     }
 }
 
@@ -185,39 +261,130 @@ void SmokeSimulation2DExample::mousePressEvent(MouseEvent& event) {
     /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
     SDL_CaptureMouse(SDL_TRUE);
 
-    //    _arcballCamera->initTransformation(event.position());
-
-    event.setAccepted();
-    redraw(); /* camera has changed, redraw! */
-}
-
-void SmokeSimulation2DExample::mouseReleaseEvent(MouseEvent&) {
-    /* Disable mouse capture again */
-    /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
-    SDL_CaptureMouse(SDL_FALSE);
-}
-
-void SmokeSimulation2DExample::mouseMoveEvent(MouseMoveEvent& event) {
-    if(!event.buttons()) { return; }
-
-    if(event.modifiers() & MouseMoveEvent::Modifier::Shift) {
-        //        _arcballCamera->translate(event.position());
-    } else {
-        //        _arcballCamera->rotate(event.position());
+    if(_imGuiContext.handleMousePressEvent(event)) {
+        event.setAccepted(true);
+        return;
     }
 
     event.setAccepted();
     redraw(); /* camera has changed, redraw! */
 }
 
+void SmokeSimulation2DExample::mouseReleaseEvent(MouseEvent& event) {
+    /* Disable mouse capture again */
+    /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
+    SDL_CaptureMouse(SDL_FALSE);
+
+    if(_imGuiContext.handleMouseReleaseEvent(event)) {
+        event.setAccepted(true);
+    }
+}
+
+void SmokeSimulation2DExample::mouseMoveEvent(MouseMoveEvent& event) {
+    if(_imGuiContext.handleMouseMoveEvent(event)) {
+        event.setAccepted(true);
+        return;
+    }
+}
+
 void SmokeSimulation2DExample::mouseScrollEvent(MouseScrollEvent& event) {
     const Float delta = event.offset().y();
     if(Math::abs(delta) < 1.0e-2f) { return; }
 
-    //    _arcballCamera->zoom(delta);
+    if(_imGuiContext.handleMouseScrollEvent(event)) {
+        /* Prevent scrolling the page */
+        event.setAccepted();
+        return;
+    }
+}
 
-    event.setAccepted();
-    redraw(); /* camera has changed, redraw! */
+void SmokeSimulation2DExample::textInputEvent(TextInputEvent& event) {
+    if(_imGuiContext.handleTextInputEvent(event)) {
+        event.setAccepted(true);
+    }
+}
+
+void SmokeSimulation2DExample::showMenu() {
+    ImGui::SetNextWindowPos({ 10.0f, 10.0f }, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowBgAlpha(0.5f);
+    ImGui::Begin("Options", nullptr);
+
+#if 0
+    /* General information */
+    ImGui::Text("Hide/show menu: H");
+    ImGui::Text("Num. particles: %d",   Int(_fluidSolver->numParticles()));
+    ImGui::Text("Rendering: %3.2f FPS", Double(ImGui::GetIO().Framerate));
+    ImGui::Spacing();
+
+    /* Rendering parameters */
+    if(ImGui::TreeNode("Particle Rendering")) {
+        ImGui::PushID("Particle Rendering");
+        {
+            constexpr const char* items[]   = { "Uniform", "Ramp by ID" };
+            static Int            colorMode = 1;
+            ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
+            if(ImGui::Combo("Color Mode", &colorMode, items, 2)) {
+                _drawableParticles->setColorMode(ParticleSphereShader2D::ColorMode(colorMode));
+            }
+            ImGui::PopItemWidth();
+            if(colorMode == 0) { /* Uniform color */
+                static Color3 color = _drawableParticles->color();
+                if(ImGui::ColorEdit3("Color", color.data())) {
+                    _drawableParticles->setColor(color);
+                }
+            }
+        }
+        ImGui::PopID();
+        ImGui::TreePop();
+    }
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    /* Simulation parameters */
+    if(ImGui::TreeNodeEx("Simulation", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::PushID("Simulation");
+        ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.3f);
+        ImGui::InputFloat("Speed", &_speed);
+        ImGui::Checkbox("Auto emit particles 5 times", &_bAutoEmitParticles);
+        ImGui::PopItemWidth();
+        ImGui::BeginGroup();
+        ImGui::Checkbox("Mouse interaction", &_bMouseInteraction);
+        if(_bMouseInteraction) {
+            ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
+            ImGui::SliderFloat("Radius",    &_mouseInteractionRadius,    1.0f, 10.0f);
+            ImGui::SliderFloat("Magnitude", &_mouseInteractionMagnitude, 1.0f, 10.0f);
+            ImGui::PopItemWidth();
+        }
+        ImGui::EndGroup();
+        ImGui::PopID();
+        ImGui::TreePop();
+    }
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    /* Reset */
+    ImGui::Spacing();
+    if(ImGui::Button("Emit Particles")) {
+        _fluidSolver->emitParticles();
+    }
+    ImGui::SameLine();
+    if(ImGui::Button(_pausedSimulation ? "Play Sim" : "Pause Sim")) {
+        _pausedSimulation ^= true;
+    }
+    ImGui::SameLine();
+#endif
+    if(ImGui::Button("Reset Sim")) {
+        resetSimulation();
+    }
+
+    ImGui::End();
+}
+
+void SmokeSimulation2DExample::resetSimulation() {
+    // _fluidSolver->reset();
+    // _pausedSimulation = false;
+    // _evolvedTime      = 0.0f;
+    // _numEmission      = 0;
 }
 } }
 
