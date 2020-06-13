@@ -1,6 +1,7 @@
-#include "Fluid.h"
+#include "SmokeSolver/SmokeSolver2D.h"
 #include <math.h>
 
+namespace Magnum { namespace Examples {
 void CreateObstacles(Surface dest, int width, int height) {
     glBindFramebuffer(GL_FRAMEBUFFER, dest.FboHandle);
     glViewport(0, 0, width, height);
@@ -18,7 +19,7 @@ void CreateObstacles(Surface dest, int width, int height) {
         #define T 0.9999f
         float positions[] = { -T, -T, T, -T, T,  T, -T,  T, -T, -T };
         #undef T
-        GLuint     vbo;
+        GLuint vbo;
         GLsizeiptr size = sizeof(positions);
         glGenBuffers(1, &vbo);
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -65,3 +66,4 @@ void CreateObstacles(Surface dest, int width, int height) {
     glDeleteProgram(program);
     glDeleteVertexArrays(1, &vao);
 }
+} }

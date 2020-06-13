@@ -1,15 +1,14 @@
-#include "Fluid.h"
+#include "SmokeSolver/SmokeSolver2D.h"
 
-Slab CreateSlab(GLsizei width, GLsizei height, int numComponents)
-{
+namespace Magnum { namespace Examples {
+Slab CreateSlab(GLsizei width, GLsizei height, int numComponents) {
     Slab slab;
     slab.Ping = CreateSurface(width, height, numComponents);
     slab.Pong = CreateSurface(width, height, numComponents);
     return slab;
 }
 
-Surface CreateSurface(GLsizei width, GLsizei height, int numComponents)
-{
+Surface CreateSurface(GLsizei width, GLsizei height, int numComponents) {
     GLuint fboHandle;
     glGenFramebuffers(1, &fboHandle);
     glBindFramebuffer(GL_FRAMEBUFFER, fboHandle);
@@ -17,14 +16,14 @@ Surface CreateSurface(GLsizei width, GLsizei height, int numComponents)
     GLuint textureHandle;
     glGenTextures(1, &textureHandle);
     glBindTexture(GL_TEXTURE_2D, textureHandle);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,     GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,     GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     const int UseHalfFloats = 1;
-    if (UseHalfFloats) {
-        switch (numComponents) {
+    if(UseHalfFloats) {
+        switch(numComponents) {
             case 1: glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, width, height, 0, GL_RED, GL_HALF_FLOAT, 0); break;
             case 2: glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, width, height, 0, GL_RG, GL_HALF_FLOAT, 0); break;
             case 3: glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_HALF_FLOAT, 0); break;
@@ -32,7 +31,7 @@ Surface CreateSurface(GLsizei width, GLsizei height, int numComponents)
             default: PezFatalError("Illegal slab format.");
         }
     } else {
-        switch (numComponents) {
+        switch(numComponents) {
             case 1: glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width, height, 0, GL_RED, GL_FLOAT, 0); break;
             case 2: glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, width, height, 0, GL_RG, GL_FLOAT, 0); break;
             case 3: glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, 0); break;
@@ -47,8 +46,8 @@ Surface CreateSurface(GLsizei width, GLsizei height, int numComponents)
     glGenRenderbuffers(1, &colorbuffer);
     glBindRenderbuffer(GL_RENDERBUFFER, colorbuffer);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureHandle, 0);
-    PezCheckCondition(GL_NO_ERROR == glGetError(), "Unable to attach color buffer");
-    
+    PezCheckCondition(            GL_NO_ERROR == glGetError(),                             "Unable to attach color buffer");
+
     PezCheckCondition(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER), "Unable to create FBO.");
     Surface surface = { fboHandle, textureHandle, numComponents };
 
@@ -58,3 +57,4 @@ Surface CreateSurface(GLsizei width, GLsizei height, int numComponents)
 
     return surface;
 }
+} }

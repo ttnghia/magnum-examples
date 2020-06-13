@@ -2,6 +2,7 @@
 #include <Magnum/GL/OpenGL.h>
 using namespace Magnum;
 
+namespace Magnum { namespace Examples {
 #define TwoPi (6.28318531f)
 #define Pi    (3.14159265f)
 #define countof(A) (sizeof(A) / sizeof(A[0]))
@@ -36,3 +37,4 @@ int         PezIsPressing(char key);
 #define PEZ_ENABLE_MULTISAMPLING  0
 #define PEZ_VERTICAL_SYNC         1
 #define PEZ_FORWARD_COMPATIBLE_GL 0
+} }

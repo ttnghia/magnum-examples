@@ -53,14 +53,15 @@ corrade_add_resource(SmokeSimulation2D_RESOURCES resources.conf)
 
 
 
-include_directories(Smoke/glew)
-include_directories(Smoke/glsw)
-include_directories(Smoke/pez)
-file(GLOB_RECURSE Smoke2D_SOURCES ./Smoke/*.cpp)
+include_directories(SmokeSolver/glew)
+include_directories(SmokeSolver/glsw)
+include_directories(SmokeSolver/pez)
+file(GLOB_RECURSE Smoke2D_SOURCES ./SmokeSolver/*.cpp)
 
 
 
 add_executable(magnum-smokesimulation2d WIN32
+#    SmokeSolver/SmokeSolver2D.cpp
     SmokeSimulation2DExample.cpp
     ../motionblur/Icosphere.cpp
     ${Smoke2D_SOURCES}

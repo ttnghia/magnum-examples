@@ -11,6 +11,7 @@
 #include <Magnum/Magnum.h>
 #include <Magnum/GL/GL.h>
 
+namespace Magnum { namespace Examples {
 LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #if 0
@@ -315,3 +316,4 @@ void PezCheckCondition(int condition, ...) {
 }
 
 #endif
+} }

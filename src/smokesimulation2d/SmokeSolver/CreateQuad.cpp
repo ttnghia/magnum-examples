@@ -1,21 +1,21 @@
-#include "Fluid.h"
+#include "SmokeSolver/SmokeSolver2D.h"
 
-GLuint CreateQuad()
-{
+namespace Magnum { namespace Examples {
+GLuint CreateQuad() {
     short positions[] = {
         -1, -1,
-         1, -1,
+        1, -1,
         -1,  1,
-         1,  1,
+        1,  1,
     };
-    
+
     // Create the VAO:
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
     // Create the VBO:
-    GLuint vbo;
+    GLuint     vbo;
     GLsizeiptr size = sizeof(positions);
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -28,3 +28,4 @@ GLuint CreateQuad()
 
     return vao;
 }
+} }
