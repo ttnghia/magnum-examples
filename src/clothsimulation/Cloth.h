@@ -39,7 +39,13 @@
 
 namespace Magnum { namespace Examples {
 struct Spring {
-    UnsignedInt v[2];
+    enum class SpringType {
+        Constraint,
+        Stretching,
+        Bending
+    };
+    SpringType  type;
+    UnsignedInt targetVertex;
     Float       restLength;
 };
 
@@ -57,11 +63,9 @@ struct Cloth {
     void resetState();
     void setCloth(const Vector3& corner, Float w, Float h, UnsignedInt nx, UnsignedInt ny,
                   UnsignedInt bendingSteps = 1);
-    void setFixedVertex(UnsignedInt vidx) { fixedVertices.insert(vidx); }
+    void setFixedVertex(UnsignedInt vidx);
 
     std::size_t getNumVertices() const { return positions.size(); }
-    std::size_t getNumStretchingSprings() const { return stretchingSprings.size(); }
-    std::size_t getNumBendingSprings() const { return bendingSprings.size(); }
     bool isFixedVertex(UnsignedInt vidx) const { return fixedVertices.find(vidx) != fixedVertices.end(); }
 
     template<class Function>
@@ -80,14 +84,14 @@ struct Cloth {
 
     std::unordered_set<UnsignedInt> fixedVertices;
 
-    std::vector<Vector3> positionsT0;
-    std::vector<Vector3> positions;
-    std::vector<Vector3> velocities;
+    /* Per vertex data */
+    std::vector<Vector3>             positionsT0;
+    std::vector<Vector3>             positions;
+    std::vector<Vector3>             velocities;
+    std::vector<std::vector<Spring>> vertexSprings; /* spring list per vertex */
 
-    std::vector<Spring> stretchingSprings;
-    std::vector<Spring> bendingSprings;
-
-    Float minVertexDistance;
+    /* Spring data */
+    Float shortestSpring;
 
     /* Visualization data */
     std::vector<Vector2> texUV;

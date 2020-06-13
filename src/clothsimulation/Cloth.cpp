@@ -30,8 +30,7 @@
 
 #include "Cloth.h"
 
-#include <unordered_map>
-#include <unordered_set>
+#include <algorithm>
 
 namespace Magnum { namespace Examples {
 void Cloth::resetState() {
@@ -41,12 +40,12 @@ void Cloth::resetState() {
 
 void Cloth::setCloth(const Vector3& corner, Float w, Float h,
                      UnsignedInt nx, UnsignedInt ny, UnsignedInt bendingSteps) {
-    /* Clear fixed vertices */
+    /* Clear data */
     fixedVertices.clear();
 
     Float spacingX = w / Float(nx - 1);
     Float spacingY = h / Float(ny - 1);
-    minVertexDistance = Math::min(spacingX, spacingY);
+    shortestSpring = Math::min(spacingX, spacingY);
 
     /* Generate geometry */
     positions.resize(nx * ny);
@@ -84,59 +83,86 @@ void Cloth::setCloth(const Vector3& corner, Float w, Float h,
     positionsT0 = positions;
     velocities.assign(positions.size(), Vector3{ 0 });
 
-    /* Generate stretching springs */
-    std::unordered_map<UnsignedInt, std::unordered_set<UnsignedInt>> edges;
-    stretchingSprings.clear();
-    for(const auto& face: faces) {
-        UnsignedInt v1 = face.v[2];
-        for(UnsignedInt i = 0; i < 3; ++i) {
-            UnsignedInt v2 = face.v[i];
-            if(v1 < v2
-               && (edges.find(v1) == edges.end()
-                   || edges[v1].find(v2) == edges[v1].end())) {
-                stretchingSprings.push_back({ v1, v2, (positions[v1] - positions[v2]).length() });
-                edges[v1].insert(v2);
-            }
-            v1 = v2;
-        }
-    }
-
-    /* Generate bending springs */
-    bendingSprings.clear();
+    /* Generate springs */
+    vertexSprings.resize(positions.size());
     for(UnsignedInt i = 0; i < nx; ++i) {
         for(UnsignedInt k = 0; k < ny; ++k) {
             UnsignedInt v1 = ny * i + k;
             UnsignedInt v2;
             Vector3     p1 = positions[v1];
             Vector3     p2;
+
+            /* Horizontal/vertical stretching springs */
+            if(i + 1 < nx) {
+                v2 = ny * (i + 1) + k;
+                p2 = positions[v2];
+                const auto l0 = (p1 - p2).length();
+                vertexSprings[v1].push_back({ Spring::SpringType::Stretching, v2, l0 });
+                vertexSprings[v2].push_back({ Spring::SpringType::Stretching, v1, l0 });
+            }
+            if(k + 1 < ny) {
+                v2 = ny * i + k + 1;
+                p2 = positions[v2];
+                const auto l0 = (p1 - p2).length();
+                vertexSprings[v1].push_back({ Spring::SpringType::Stretching, v2, l0 });
+                vertexSprings[v2].push_back({ Spring::SpringType::Stretching, v1, l0 });
+            }
+
+            /* Horizontal/vertical bending springs */
             if(i + 2 < nx) {
                 v2 = ny * (i + 2) + k;
                 p2 = positions[v2];
-                bendingSprings.push_back({ v1, v2, (p1 - p2).length() });
+                const auto l0 = (p1 - p2).length();
+                vertexSprings[v1].push_back({ Spring::SpringType::Bending, v2, l0 });
+                vertexSprings[v2].push_back({ Spring::SpringType::Bending, v1, l0 });
             }
             if(k + 2 < ny) {
                 v2 = ny * i + k + 2;
                 p2 = positions[v2];
-                bendingSprings.push_back({ v1, v2, (p1 - p2).length() });
+                const auto l0 = (p1 - p2).length();
+                vertexSprings[v1].push_back({ Spring::SpringType::Bending, v2, l0 });
+                vertexSprings[v2].push_back({ Spring::SpringType::Bending, v1, l0 });
             }
 
-            for(int step = 1; step <= bendingSteps; ++step) {
+            for(UnsignedInt step = 1; step <= bendingSteps; ++step) {
                 if(i + step < nx &&
                    k + step < ny) {
                     v1 = ny * i + k;
                     v2 = ny * (i + step) + k + step;
                     p1 = positions[v1];
                     p2 = positions[v2];
-                    bendingSprings.push_back({ v1, v2, (p1 - p2).length() });
+                    auto l0 = (p1 - p2).length();
+                    vertexSprings[v1].push_back({ Spring::SpringType::Bending, v2, l0 });
+                    vertexSprings[v2].push_back({ Spring::SpringType::Bending, v1, l0 });
 
                     v1 = ny * (i + step) + k;
                     v2 = ny * i + k + step;
                     p1 = positions[v1];
                     p2 = positions[v2];
-                    bendingSprings.push_back({ v1, v2, (p1 - p2).length() });
+                    l0 = (p1 - p2).length();
+                    vertexSprings[v1].push_back({ Spring::SpringType::Bending, v2, l0 });
+                    vertexSprings[v2].push_back({ Spring::SpringType::Bending, v1, l0 });
                 }
             }
         }
     }
+
+    for(auto& springList: vertexSprings) {
+        std::sort(springList.begin(), springList.end(),
+                  [](const Spring& s1, const Spring& s2) {
+                      return s1.targetVertex < s2.targetVertex;
+                  });
+    }
+}
+
+void Cloth::setFixedVertex(UnsignedInt vidx) {
+    fixedVertices.insert(vidx);
+
+    auto& springList = vertexSprings[vidx];
+    springList.push_back({ Spring::SpringType::Constraint, vidx, 0 });
+    std::sort(springList.begin(), springList.end(),
+              [](const Spring& s1, const Spring& s2) {
+                  return s1.targetVertex < s2.targetVertex;
+              });
 }
 } }
