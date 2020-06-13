@@ -28,6 +28,9 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <Magnum/Magnum.h>
+#include <Magnum/Math/Matrix3.h>
+
 #include "ClothSolver.h"
 
 namespace Magnum { namespace Examples {
@@ -44,7 +47,7 @@ void MSSSolver::advanceFrame(Float frameDuration) {
         }
         frameTime += substep;
 
-        addGravity(substep);
+        addExternalForces(substep);
         implicitIntegration(substep);
         updateVertexVelocities();
         updateVertexPositions(substep);
@@ -59,15 +62,80 @@ Float MSSSolver::timestepCFL() const {
     return maxVel > 0 ? _cflFactor / maxVel : 1.0f;
 }
 
-void MSSSolver::addGravity(Float dt) {
+void MSSSolver::addExternalForces(Float dt) {
     _cloth.loopVertices([&](UnsignedInt vidx) {
                             if(!_cloth.isFixedVertex(vidx)) {
+                                /* Gravity */
                                 _cloth.velocities[vidx].y() -= Float(9.81) * dt;
+
+                                /* Wind */
                             }
                         });
 }
 
-void MSSSolver::implicitIntegration(Float dt) {}
+void MSSSolver::implicitIntegration(Float dt) {
+    _linearSystemSolver.resize(_cloth.getNumVertices() * 3);
+    _linearSystemSolver.clear();
+
+    const Float dtSqr = dt * dt;
+    _cloth.loopVertices([&](UnsignedInt vidx) {
+                            if(!_cloth.isFixedVertex(vidx)) {
+                                const Vector3 ppos = _cloth.positions[vidx];
+                                const Vector3 pvel = _cloth.velocities[vidx];
+
+                                Matrix3 sumLHSDx{ 0 };
+                                Vector3 sumRHSDx{ 0 };
+                                Vector3 springForce{ 0 };
+                                Vector3 dampingForce{ 0 };
+
+                                const auto& springList = _cloth.vertexSprings[vidx];
+                                for(const Spring& spring : springList) {
+                                    const UnsignedInt q = spring.targetVertex;
+                                    Vector3 eij         = _cloth.positions[q] - ppos;
+                                    const Float dij     = eij.length();
+                                    if(dij < Float(1e-10)) {
+                                        continue;
+                                    }
+                                    eij /= dij;
+
+                                    Float springStiffness;
+                                    if(spring.type == Spring::SpringType::Constraint) {
+                                        springStiffness = _constraintStiffness;
+                                    } else if(spring.type == Spring::SpringType::Stretching) {
+                                        springStiffness = _stretchingStiffness;
+                                    } else {
+                                        springStiffness = _bendingStiffness;
+                                    }
+                                    springForce += (dij - spring.restLength) * eij * springStiffness;
+
+                                    const Vector3 relVel = _cloth.velocities[q] - pvel;
+                                    dampingForce        += Math::dot(eij, relVel) * eij * _damping;
+
+                                    Matrix3 springDx;
+                                    Matrix3 dampingDx;
+                                    forceDerivative(eij, dij, spring.restLength,
+                                                    springStiffness, _damping,
+                                                    springDx, dampingDx);
+                                    springDx  *= dtSqr;
+                                    dampingDx *= dt;
+                                    sumRHSDx  -= (springDx * relVel);
+
+                                    springDx += dampingDx;
+                                    sumLHSDx -= springDx;
+
+                                    setMatrix(vidx, q, springDx);
+                                }
+
+                                sumLHSDx += Matrix3(1);
+                                setMatrix(vidx, vidx, sumLHSDx);
+
+                                sumRHSDx += (springForce + dampingForce) * dt;
+                                for(UnsignedInt i = 0; i < 3; ++i) {
+                                    _linearSystemSolver.rhs[vidx * 3] = sumRHSDx[i];
+                                }
+                            }
+                        });
+}
 
 void MSSSolver::updateVertexVelocities() {
     _cloth.loopVertices([&](UnsignedInt vidx) {
@@ -87,5 +155,29 @@ void MSSSolver::updateVertexPositions(Float dt) {
                                 _cloth.positions[vidx] += _cloth.velocities[vidx] * dt;
                             }
                         });
+}
+
+/*  https://blog.mmacklin.com/2012/05/04/implicitsprings */
+void MSSSolver::forceDerivative(const Vector3& eij, Float dij, Float d0,
+                                Float stiffness, Float damping,
+                                Matrix3& springDx, Matrix3& dampingDx) {
+    Matrix3 xijxijT; /* = outerProduct(eij, eij) */
+    for(UnsignedInt i = 0; i < 3; ++i) {
+        for(UnsignedInt j = 0; j < 3; ++j) {
+            xijxijT[i][j] = eij[i] * eij[j];
+        }
+    }
+    springDx  = -stiffness * ((Float(1) - d0 / dij) * (Matrix3(1) - xijxijT) + xijxijT);
+    dampingDx = -damping * xijxijT;
+}
+
+void MSSSolver::setMatrix(UnsignedInt p, UnsignedInt q, const Matrix3& mat) {
+    for(UnsignedInt i = 0; i < 3; ++i) {
+        for(UnsignedInt j = 0; j < 3; ++j) {
+            _linearSystemSolver.matrix.addToElement(p * 3 + i,
+                                                    q * 3 + j,
+                                                    mat[i][j]);
+        }
+    }
 }
 } }
