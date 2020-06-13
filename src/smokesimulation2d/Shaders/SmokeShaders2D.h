@@ -33,7 +33,16 @@
 #include <Magnum/GL/AbstractShaderProgram.h>
 
 namespace Magnum { namespace Examples {
-class FillTextureShader : public GL::AbstractShaderProgram {
+class ScreenQuadShader : public GL::AbstractShaderProgram {
+public:
+    ScreenQuadShader() = default;
+    void createShader(const std::string fragShaderSrc);
+
+protected:
+    bool _shaderCreated { false };
+};
+
+class FillTextureShader : public ScreenQuadShader {
 public:
     FillTextureShader();
     FillTextureShader& setNumParticles(Int numParticles);
@@ -42,7 +51,7 @@ private:
     Int _uNumParticles;
 };
 
-class AdvectShader : public GL::AbstractShaderProgram {
+class AdvectShader : public ScreenQuadShader {
 public:
     AdvectShader();
     AdvectShader& setNumParticles(Int numParticles);
@@ -51,7 +60,7 @@ private:
     Int _uNumParticles;
 };
 
-class JacobiShader : public GL::AbstractShaderProgram {
+class JacobiShader : public ScreenQuadShader {
 public:
     JacobiShader();
     JacobiShader& setNumParticles(Int numParticles);
@@ -60,7 +69,7 @@ private:
     Int _uNumParticles;
 };
 
-class SubtractGradientShader : public GL::AbstractShaderProgram {
+class SubtractGradientShader : public ScreenQuadShader {
 public:
     SubtractGradientShader();
     SubtractGradientShader& setNumParticles(Int numParticles);
@@ -69,7 +78,7 @@ private:
     Int _uNumParticles;
 };
 
-class ComputeDivergenceShader : public GL::AbstractShaderProgram {
+class ComputeDivergenceShader : public ScreenQuadShader {
 public:
     ComputeDivergenceShader();
     ComputeDivergenceShader& setNumParticles(Int numParticles);
@@ -78,7 +87,7 @@ private:
     Int _uNumParticles;
 };
 
-class ApplyImpulseShader : public GL::AbstractShaderProgram {
+class ApplyImpulseShader : public ScreenQuadShader {
 public:
     ApplyImpulseShader();
     ApplyImpulseShader& setNumParticles(Int numParticles);
@@ -87,7 +96,7 @@ private:
     Int _uNumParticles;
 };
 
-class ApplyBuoyancyShader : public GL::AbstractShaderProgram {
+class ApplyBuoyancyShader : public ScreenQuadShader {
 public:
     ApplyBuoyancyShader();
     ApplyBuoyancyShader& setNumParticles(Int numParticles);
@@ -96,7 +105,7 @@ private:
     Int _uNumParticles;
 };
 
-class SmokeShader : public GL::AbstractShaderProgram {
+class SmokeShader : public ScreenQuadShader {
 public:
     SmokeShader();
     SmokeShader& setNumParticles(Int numParticles);

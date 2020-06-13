@@ -29,6 +29,7 @@
  */
 
 #include "SmokeSolver/SmokeSolver2D.h"
+#include "Shaders/SmokeShaders2D.h"
 
 #include <glsw.h>
 #include <string.h>

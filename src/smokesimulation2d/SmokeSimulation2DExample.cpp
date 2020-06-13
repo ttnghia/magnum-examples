@@ -49,6 +49,7 @@
 #include <stdio.h>
 #include <Pez.h>
 #include "SmokeSolver/SmokeSolver2D.h"
+#include "Shaders/SmokeShaders2D.h"
 
 namespace Magnum { namespace Examples {
 class SmokeSimulation2DExample : public Platform::Application {
@@ -157,6 +158,9 @@ SmokeSimulation2DExample::SmokeSimulation2DExample(const Arguments& arguments) :
 
     _smokeSolver.emplace();
     _smokeSolver->PezInitialize();
+
+    // ScreenQuadShader shader;
+    // shader.createShader("out vec3 FragColor; void main() { FragColor = vec3(1, 0, 0); }");
     //GL::Renderer::setClearColor(Color4(1, 1, 1, 1));
     // GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth)
     //     .bind();

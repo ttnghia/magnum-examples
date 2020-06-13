@@ -28,43 +28,20 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-uniform highp mat3 viewProjectionMatrix;
-uniform int numParticles;
-uniform int colorMode;
-uniform int screenHeight;
-uniform int domainHeight;
-uniform float particleRadius;
-uniform vec3 uniformColor;
+out vec2 f_TexCoord;
 
+const vec2 pos[] = vec2[](vec2(-1.0, -1.0),
+                    vec2(1.0, -1.0),
+                    vec2(-1.0, 1.0),
+                    vec2(1.0, 1.0));
 
-layout(location = 0) in highp vec2 position;
-flat out vec3 color;
+const vec2 tex[] = vec2[](vec2(0.0, 0.0),
+                    vec2(1.0, 0.0),
+                    vec2(0.0, 1.0),
+                    vec2(1.0, 1.0));
 
-const vec3 colorRamp[] = vec3[] (
-    vec3(1.0, 0.0, 0.0),
-    vec3(1.0, 0.5, 0.0),
-    vec3(1.0, 1.0, 0.0),
-    vec3(1.0, 0.0, 1.0),
-    vec3(0.0, 1.0, 0.0),
-    vec3(0.0, 1.0, 1.0),
-    vec3(0.0, 0.0, 1.0)
-);
-
-vec3 generateVertexColor() {
-    if(colorMode == 1 ) { /* ramp color by particle id */
-        float segmentSize = float(numParticles)/6.0f;
-        float segment = floor(float(gl_VertexID)/segmentSize);
-        float t = (float(gl_VertexID) - segmentSize*segment)/segmentSize;
-        vec3 startVal = colorRamp[int(segment)];
-        vec3 endVal = colorRamp[int(segment) + 1];
-        return mix(startVal, endVal, t);
-    } else { /* uniform diffuse color */
-        return uniformColor;
-    }
-}
-
-void main() {
-    color = generateVertexColor();
-    gl_PointSize = particleRadius * float(screenHeight) / float(domainHeight);
-    gl_Position = mat4(viewProjectionMatrix) * vec4(position, 0, 1.0);
-}
+void main()
+{
+    gl_Position = vec4(pos[gl_VertexID], 0.0, 1.0);
+    f_TexCoord = tex[gl_VertexID];
+};

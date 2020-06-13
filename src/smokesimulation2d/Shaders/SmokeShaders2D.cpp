@@ -38,18 +38,20 @@
 #include <Magnum/Math/Matrix3.h>
 
 namespace Magnum { namespace Examples {
-FillTextureShader::FillTextureShader() {
+void ScreenQuadShader::createShader(const std::string fragShaderSrc) {
     Utility::Resource rs("data");
-
-    GL::Shader vertShader{ GL::Version::GL330, GL::Shader::Type::Vertex };
-    GL::Shader fragShader{ GL::Version::GL330, GL::Shader::Type::Fragment };
-    vertShader.addSource(rs.get("ParticleSphereShader2D.vert"));
-    fragShader.addSource(rs.get("ParticleSphereShader2D.frag"));
+    GL::Shader        vertShader{ GL::Version::GL330, GL::Shader::Type::Vertex };
+    GL::Shader        fragShader{ GL::Version::GL330, GL::Shader::Type::Fragment };
+    vertShader.addSource(rs.get("ScreenQuad.vert"));
+    fragShader.addSource(fragShaderSrc);
 
     CORRADE_INTERNAL_ASSERT(GL::Shader::compile({ vertShader, fragShader }));
     attachShaders({ vertShader, fragShader });
     CORRADE_INTERNAL_ASSERT(link());
+    _shaderCreated = true;
+}
 
+FillTextureShader::FillTextureShader() {
     _uNumParticles = uniformLocation("numParticles");
 }
 
