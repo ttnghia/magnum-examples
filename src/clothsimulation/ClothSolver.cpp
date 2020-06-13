@@ -44,8 +44,10 @@ void MSSSolver::advanceFrame(Float frameDuration) {
         }
         frameTime += substep;
 
-        /* Advect particles */
-        moveVertices(substep);
+        addGravity(substep);
+        implicitIntegration(substep);
+        updateVertexVelocities();
+        updateVertexPositions(substep);
     }
 }
 
@@ -57,7 +59,29 @@ Float MSSSolver::timestepCFL() const {
     return maxVel > 0 ? _cflFactor / maxVel : 1.0f;
 }
 
-void MSSSolver::moveVertices(Float dt) {
+void MSSSolver::addGravity(Float dt) {
+    _cloth.loopVertices([&](UnsignedInt vidx) {
+                            if(!_cloth.isFixedVertex(vidx)) {
+                                _cloth.velocities[vidx].y() -= Float(9.81) * dt;
+                            }
+                        });
+}
+
+void MSSSolver::implicitIntegration(Float dt) {}
+
+void MSSSolver::updateVertexVelocities() {
+    _cloth.loopVertices([&](UnsignedInt vidx) {
+                            if(!_cloth.isFixedVertex(vidx)) {
+                                Vector3 dv;
+                                for(UnsignedInt i = 0; i < 3; ++i) {
+                                    dv[i] = static_cast<Float>(_linearSystemSolver.solution[vidx * 3 + i]);
+                                }
+                                _cloth.velocities[vidx] += dv;
+                            }
+                        });
+}
+
+void MSSSolver::updateVertexPositions(Float dt) {
     _cloth.loopVertices([&](UnsignedInt vidx) {
                             if(!_cloth.isFixedVertex(vidx)) {
                                 _cloth.positions[vidx] += _cloth.velocities[vidx] * dt;

@@ -41,20 +41,31 @@ public:
     /*  Simulation ops */
     void advanceFrame(Float frameDuration);
 
-    /* Accessor to cfl factor */
+    /* Simulation parameter accessors */
+    Float& stretchingStiffness() { return _stretchingStiffness; }
+    Float& bendingStiffness() { return _bendingStiffness; }
+    Float& constraintStiffness() { return _constraintStiffness; }
     Float& cflFactor() { return _cflFactor; }
 
-    /* Cloth object */
+    /* Data accessor */
     Cloth& getCloth() { return _cloth; }
-    const Cloth& getCloth() const { return _cloth; }
 
 private:
     Float timestepCFL() const;
-    void  moveVertices(Float dt);
+    void  addGravity(Float dt);
+    void  implicitIntegration(Float dt);
+    void  updateVertexVelocities();
+    void  updateVertexPositions(Float dt);
 
+    /* Simulation data */
     Cloth              _cloth;
-    LinearSystemSolver _pressureSolver;
-    Float              _cflFactor { 1.0f };
+    LinearSystemSolver _linearSystemSolver;
+
+    /* Simulation parameters */
+    Float _stretchingStiffness{ 100.0f };
+    Float _bendingStiffness{ 100.0f };
+    Float _constraintStiffness{ 1000.0f };
+    Float _cflFactor { 1.0f };
 };
 } }
 
