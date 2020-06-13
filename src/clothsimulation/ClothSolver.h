@@ -30,58 +30,31 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <Corrade/Containers/Pointer.h>
-
 #include "Cloth.h"
+#include "../fluidsimulation2d/FluidSolver/SolverData.h"
 
 namespace Magnum { namespace Examples {
 class MSSSolver {
 public:
-    explicit MSSSolver(const Vector2& origin, Float cellSize, Int Ni, Int Nj, SceneObjects* sceneObjs);
+    MSSSolver() = default;
 
-    /* Manipulation */
-    void reset() {
-        _particles.reset();
-        _particles.addParticles(_particles.positionsT0, 0);
-    }
-
-    void emitParticles() { generateParticles(_objects->emitter, 10); }
-
-    void addRepulsiveVelocity(const Vector2& p0, const Vector2& p1, Float dt, Float radius, Float magnitude);
-
+    /*  Simulation ops */
     void advanceFrame(Float frameDuration);
 
-    /* Properties */
-    UnsignedInt numParticles() const { return _particles.size(); }
+    /* Accessor to cfl factor */
+    Float& cflFactor() { return _cflFactor; }
 
-    Float particleRadius() const { return _particles.particleRadius; }
-
-    const std::vector<Vector2>& particlePositions() const {
-        return _particles.positions;
-    }
+    /* Cloth object */
+    Cloth& getCloth() { return _cloth; }
+    const Cloth& getCloth() const { return _cloth; }
 
 private:
-    /* Initialization */
-    void initBoundary();
-    void generateParticles(const SDFObject& sdfObj, Float initialVelocity_y);
-
-    /* Simulation */
     Float timestepCFL() const;
-    void  moveParticles(Float dt);
-    void  collectParticlesToCells();
-    void  particleVelocity2Grid();
-    void  extrapolate(Array2X<Float>& grid, Array2X<Float>& tmp_grid, Array2X<char>& valid, Array2X<char>& old_valid) const;
-    void  addGravity(Float dt);
-    void  computeFluidSDF();
-    void  solvePressures(Float dt);
-    void  constrainVelocity();
-    void  relaxParticlePositions(Float dt);
-    void  gridVelocity2Particle();
+    void  moveVertices(Float dt);
 
-    Containers::Pointer<SceneObjects> _objects;
-    ParticleData       _particles;
-    GridData           _grid;
+    Cloth              _cloth;
     LinearSystemSolver _pressureSolver;
+    Float              _cflFactor { 1.0f };
 };
 } }
 

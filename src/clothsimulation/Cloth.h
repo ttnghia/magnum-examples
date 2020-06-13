@@ -30,11 +30,12 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <vector>
+#include <Magnum/Magnum.h>
 #include <Magnum/Math/Vector2.h>
 #include <Magnum/Math/Vector3.h>
 
-#include "../fluidsimulation2d/DataStructures/PCGSolver.h"
+#include <vector>
+#include <unordered_set>
 
 namespace Magnum { namespace Examples {
 struct Spring {
@@ -49,17 +50,19 @@ struct Face {
 struct Cloth {
     explicit Cloth(const Vector3& corner, Float w, Float h, UnsignedInt nx, UnsignedInt ny,
                    UnsignedInt bendingSteps = 1) {
+        CORRADE_INTERNAL_ASSERT(w > 0 && h > 0 && nx > 1 && ny > 1);
         setCloth(corner, w, h, nx, ny, bendingSteps);
     }
 
-    void reset();
+    void resetState();
     void setCloth(const Vector3& corner, Float w, Float h, UnsignedInt nx, UnsignedInt ny,
                   UnsignedInt bendingSteps = 1);
-    void setFixedVertices(const std::vector<UnsignedInt>& vertices) { fixedVertices = vertices; }
+    void setFixedVertex(UnsignedInt vidx) { fixedVertices.insert(vidx); }
 
     std::size_t getNumVertices() const { return positions.size(); }
     std::size_t getNumStretchingSprings() const { return stretchingSprings.size(); }
     std::size_t getNumBendingSprings() const { return bendingSprings.size(); }
+    bool isFixedVertex(UnsignedInt vidx) const { return fixedVertices.find(vidx) != fixedVertices.end(); }
 
     template<class Function>
     void loopVertices(Function&& func) const {
@@ -75,18 +78,20 @@ struct Cloth {
         }
     }
 
+    std::unordered_set<UnsignedInt> fixedVertices;
+
     std::vector<Vector3> positionsT0;
     std::vector<Vector3> positions;
     std::vector<Vector3> velocities;
 
-    std::vector<UnsignedInt> fixedVertices;
-
     std::vector<Spring> stretchingSprings;
     std::vector<Spring> bendingSprings;
 
+    Float minVertexDistance;
+
     /* Visualization data */
-    std::vector<Face>    faces;
     std::vector<Vector2> texUV;
+    std::vector<Face>    faces;
 };
 } }
 

@@ -34,15 +34,19 @@
 #include <unordered_set>
 
 namespace Magnum { namespace Examples {
-void Cloth::reset() {
+void Cloth::resetState() {
     positions = positionsT0;
     velocities.assign(velocities.size(), Vector3{ 0 });
 }
 
 void Cloth::setCloth(const Vector3& corner, Float w, Float h,
                      UnsignedInt nx, UnsignedInt ny, UnsignedInt bendingSteps) {
+    /* Clear fixed vertices */
+    fixedVertices.clear();
+
     Float spacingX = w / Float(nx - 1);
     Float spacingY = h / Float(ny - 1);
+    minVertexDistance = Math::min(spacingX, spacingY);
 
     /* Generate geometry */
     positions.resize(nx * ny);
@@ -78,10 +82,11 @@ void Cloth::setCloth(const Vector3& corner, Float w, Float h,
 
     /* Store positions, and set velocities */
     positionsT0 = positions;
-    velocities.resize(positions.size(), Vector3{ 0 });
+    velocities.assign(positions.size(), Vector3{ 0 });
 
     /* Generate stretching springs */
     std::unordered_map<UnsignedInt, std::unordered_set<UnsignedInt>> edges;
+    stretchingSprings.clear();
     for(const auto& face: faces) {
         UnsignedInt v1 = face.v[2];
         for(UnsignedInt i = 0; i < 3; ++i) {
@@ -97,6 +102,7 @@ void Cloth::setCloth(const Vector3& corner, Float w, Float h,
     }
 
     /* Generate bending springs */
+    bendingSprings.clear();
     for(UnsignedInt i = 0; i < nx; ++i) {
         for(UnsignedInt k = 0; k < ny; ++k) {
             UnsignedInt v1 = ny * i + k;

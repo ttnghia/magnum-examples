@@ -51,6 +51,9 @@ set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 
 corrade_add_resource(ClothSimulation_RESOURCES resources.conf)
 
+# Include this folder to reuse additional data structures
+include_directories(../fluidsimulation2d)
+
 add_executable(magnum-clothsimulation WIN32
     ClothSimulationExample.cpp
     Cloth.h
