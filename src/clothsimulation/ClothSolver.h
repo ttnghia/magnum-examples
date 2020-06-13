@@ -34,9 +34,9 @@
 #include "../fluidsimulation2d/FluidSolver/SolverData.h"
 
 namespace Magnum { namespace Examples {
-class MSSSolver {
+class ClothSolver {
 public:
-    MSSSolver() = default;
+    ClothSolver() = default;
 
     /*  Simulation ops */
     void advanceFrame(Float frameDuration);

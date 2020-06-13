@@ -54,14 +54,15 @@ struct Face {
 };
 
 struct Cloth {
-    explicit Cloth(const Vector3& corner, Float w, Float h, UnsignedInt nx, UnsignedInt ny,
+    explicit Cloth() = default;
+    explicit Cloth(const Vector3& corner, const Vector2& size, const Vector2ui resolution,
                    UnsignedInt bendingSteps = 1) {
-        CORRADE_INTERNAL_ASSERT(w > 0 && h > 0 && nx > 1 && ny > 1);
-        setCloth(corner, w, h, nx, ny, bendingSteps);
+        CORRADE_INTERNAL_ASSERT(size.x() > 0 && size.y() > 0 && resolution.x() > 1 && resolution.y() > 1);
+        setCloth(corner, size, resolution, bendingSteps);
     }
 
     void resetState();
-    void setCloth(const Vector3& corner, Float w, Float h, UnsignedInt nx, UnsignedInt ny,
+    void setCloth(const Vector3& corner, const Vector2& size, const Vector2ui resolution,
                   UnsignedInt bendingSteps = 1);
     void setFixedVertex(UnsignedInt vidx);
 

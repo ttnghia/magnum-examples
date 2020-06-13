@@ -34,7 +34,7 @@
 #include "ClothSolver.h"
 
 namespace Magnum { namespace Examples {
-void MSSSolver::advanceFrame(Float frameDuration) {
+void ClothSolver::advanceFrame(Float frameDuration) {
     Float frameTime = 0;
 
     while(frameTime < frameDuration) {
@@ -54,7 +54,7 @@ void MSSSolver::advanceFrame(Float frameDuration) {
     }
 }
 
-Float MSSSolver::timestepCFL() const {
+Float ClothSolver::timestepCFL() const {
     Float maxVel = 0;
     _cloth.loopVertices([&](UnsignedInt vidx) {
                             maxVel = Math::max(maxVel, Math::abs(_cloth.velocities[vidx].length()));
@@ -62,7 +62,7 @@ Float MSSSolver::timestepCFL() const {
     return maxVel > 0 ? _cflFactor / maxVel : 1.0f;
 }
 
-void MSSSolver::addExternalForces(Float dt) {
+void ClothSolver::addExternalForces(Float dt) {
     _cloth.loopVertices([&](UnsignedInt vidx) {
                             if(!_cloth.isFixedVertex(vidx)) {
                                 /* Gravity */
@@ -73,7 +73,7 @@ void MSSSolver::addExternalForces(Float dt) {
                         });
 }
 
-void MSSSolver::implicitEulerIntegration(Float dt) {
+void ClothSolver::implicitEulerIntegration(Float dt) {
     _linearSystemSolver.resize(_cloth.getNumVertices() * 3);
     _linearSystemSolver.clear();
 
@@ -139,7 +139,7 @@ void MSSSolver::implicitEulerIntegration(Float dt) {
     _linearSystemSolver.solve();
 }
 
-void MSSSolver::updateVertexVelocities() {
+void ClothSolver::updateVertexVelocities() {
     _cloth.loopVertices([&](UnsignedInt vidx) {
                             if(!_cloth.isFixedVertex(vidx)) {
                                 Vector3 dv;
@@ -151,7 +151,7 @@ void MSSSolver::updateVertexVelocities() {
                         });
 }
 
-void MSSSolver::updateVertexPositions(Float dt) {
+void ClothSolver::updateVertexPositions(Float dt) {
     _cloth.loopVertices([&](UnsignedInt vidx) {
                             if(!_cloth.isFixedVertex(vidx)) {
                                 _cloth.positions[vidx] += _cloth.velocities[vidx] * dt;
@@ -160,7 +160,7 @@ void MSSSolver::updateVertexPositions(Float dt) {
 }
 
 /*  https://blog.mmacklin.com/2012/05/04/implicitsprings */
-void MSSSolver::forceDerivative(const Vector3& eij, Float dij, Float d0,
+void ClothSolver::forceDerivative(const Vector3& eij, Float dij, Float d0,
                                 Float stiffness, Float damping,
                                 Matrix3& springDx, Matrix3& dampingDx) {
     Matrix3 xijxijT; /* = outerProduct(eij, eij) */
@@ -173,7 +173,7 @@ void MSSSolver::forceDerivative(const Vector3& eij, Float dij, Float d0,
     dampingDx = -damping * xijxijT;
 }
 
-void MSSSolver::setMatrix(UnsignedInt p, UnsignedInt q, const Matrix3& mat) {
+void ClothSolver::setMatrix(UnsignedInt p, UnsignedInt q, const Matrix3& mat) {
     for(UnsignedInt i = 0; i < 3; ++i) {
         for(UnsignedInt j = 0; j < 3; ++j) {
             _linearSystemSolver.matrix.addToElement(p * 3 + i,

@@ -38,40 +38,41 @@ void Cloth::resetState() {
     velocities.assign(velocities.size(), Vector3{ 0 });
 }
 
-void Cloth::setCloth(const Vector3& corner, Float w, Float h,
-                     UnsignedInt nx, UnsignedInt ny, UnsignedInt bendingSteps) {
+void Cloth::setCloth(const Vector3& corner,
+                     const Vector2& size, const Vector2ui resolution,
+                     UnsignedInt bendingSteps) {
     /* Clear data */
     fixedVertices.clear();
 
-    Float spacingX = w / Float(nx - 1);
-    Float spacingY = h / Float(ny - 1);
+    Float spacingX = size.x() / Float(resolution.x() - 1);
+    Float spacingY = size.y() / Float(resolution.y() - 1);
     shortestSpring = Math::min(spacingX, spacingY);
 
     /* Generate geometry */
-    positions.resize(nx * ny);
-    texUV.resize(nx * ny);
-    faces.resize((nx - 1) * (ny - 1) * 2);
+    positions.resize(resolution.x() * resolution.y());
+    texUV.resize(resolution.x() * resolution.y());
+    faces.resize((resolution.x() - 1) * (resolution.y() - 1) * 2);
     bool row_flip = false, column_flip = false;
-    for(UnsignedInt i = 0; i < nx; ++i) {
-        for(UnsignedInt k = 0; k < ny; ++k) {
+    for(UnsignedInt i = 0; i < resolution.x(); ++i) {
+        for(UnsignedInt k = 0; k < resolution.y(); ++k) {
             /* Generate position and tex coordinate */
-            UnsignedInt   index = ny * i + k;
+            UnsignedInt   index = resolution.y() * i + k;
             const Vector3 pos   = corner + Vector3{ spacingX* i, spacingY* k, 0 };
             positions[index] = pos;
-            texUV[index]     = (pos - corner).xy() / Vector2{ w, h };
+            texUV[index]     = (pos - corner).xy() / size;
 
             /* Generate triangles */
-            index = (ny - 1) * i + k;
+            index = (resolution.y() - 1) * i + k;
 
             /* First triangle */
-            faces[2 * index ] = { ny* i + k,
-                                  ny* i + k + 1,
-                                  ny* (i + 1) + ((row_flip ^ column_flip) ? (k + 1) : k) };
+            faces[2 * index ] = { resolution.y() * i + k,
+                                  resolution.y() * i + k + 1,
+                                  resolution.y() * (i + 1) + ((row_flip ^ column_flip) ? (k + 1) : k) };
 
             /* Second triangle */
-            faces[2 * index + 1] = { ny* (i + 1) + k + 1,
-                                     ny* (i + 1) + k,
-                                     ny* i + ((row_flip ^ column_flip) ? k : (k + 1)) };
+            faces[2 * index + 1] = { resolution.y() * (i + 1) + k + 1,
+                                     resolution.y() * (i + 1) + k,
+                                     resolution.y() * i + ((row_flip ^ column_flip) ? k : (k + 1)) };
 
             row_flip = !row_flip;
         }
@@ -85,23 +86,23 @@ void Cloth::setCloth(const Vector3& corner, Float w, Float h,
 
     /* Generate springs */
     vertexSprings.resize(positions.size());
-    for(UnsignedInt i = 0; i < nx; ++i) {
-        for(UnsignedInt k = 0; k < ny; ++k) {
-            UnsignedInt v1 = ny * i + k;
+    for(UnsignedInt i = 0; i < resolution.x(); ++i) {
+        for(UnsignedInt k = 0; k < resolution.y(); ++k) {
+            UnsignedInt v1 = resolution.y() * i + k;
             UnsignedInt v2;
             Vector3     p1 = positions[v1];
             Vector3     p2;
 
             /* Horizontal/vertical stretching springs */
-            if(i + 1 < nx) {
-                v2 = ny * (i + 1) + k;
+            if(i + 1 < resolution.x()) {
+                v2 = resolution.y() * (i + 1) + k;
                 p2 = positions[v2];
                 const auto l0 = (p1 - p2).length();
                 vertexSprings[v1].push_back({ Spring::SpringType::Stretching, v2, l0 });
                 vertexSprings[v2].push_back({ Spring::SpringType::Stretching, v1, l0 });
             }
-            if(k + 1 < ny) {
-                v2 = ny * i + k + 1;
+            if(k + 1 < resolution.y()) {
+                v2 = resolution.y() * i + k + 1;
                 p2 = positions[v2];
                 const auto l0 = (p1 - p2).length();
                 vertexSprings[v1].push_back({ Spring::SpringType::Stretching, v2, l0 });
@@ -109,15 +110,15 @@ void Cloth::setCloth(const Vector3& corner, Float w, Float h,
             }
 
             /* Horizontal/vertical bending springs */
-            if(i + 2 < nx) {
-                v2 = ny * (i + 2) + k;
+            if(i + 2 < resolution.x()) {
+                v2 = resolution.y() * (i + 2) + k;
                 p2 = positions[v2];
                 const auto l0 = (p1 - p2).length();
                 vertexSprings[v1].push_back({ Spring::SpringType::Bending, v2, l0 });
                 vertexSprings[v2].push_back({ Spring::SpringType::Bending, v1, l0 });
             }
-            if(k + 2 < ny) {
-                v2 = ny * i + k + 2;
+            if(k + 2 < resolution.y()) {
+                v2 = resolution.y() * i + k + 2;
                 p2 = positions[v2];
                 const auto l0 = (p1 - p2).length();
                 vertexSprings[v1].push_back({ Spring::SpringType::Bending, v2, l0 });
@@ -125,18 +126,18 @@ void Cloth::setCloth(const Vector3& corner, Float w, Float h,
             }
 
             for(UnsignedInt step = 1; step <= bendingSteps; ++step) {
-                if(i + step < nx &&
-                   k + step < ny) {
-                    v1 = ny * i + k;
-                    v2 = ny * (i + step) + k + step;
+                if(i + step < resolution.x() &&
+                   k + step < resolution.y()) {
+                    v1 = resolution.y() * i + k;
+                    v2 = resolution.y() * (i + step) + k + step;
                     p1 = positions[v1];
                     p2 = positions[v2];
                     auto l0 = (p1 - p2).length();
                     vertexSprings[v1].push_back({ Spring::SpringType::Bending, v2, l0 });
                     vertexSprings[v2].push_back({ Spring::SpringType::Bending, v1, l0 });
 
-                    v1 = ny * (i + step) + k;
-                    v2 = ny * i + k + step;
+                    v1 = resolution.y() * (i + step) + k;
+                    v2 = resolution.y() * i + k + step;
                     p1 = positions[v1];
                     p2 = positions[v2];
                     l0 = (p1 - p2).length();

@@ -39,6 +39,7 @@ endif()
 
 find_package(Corrade REQUIRED Main)
 find_package(Magnum REQUIRED
+    DebugTools
     GL
     MeshTools
     Primitives
@@ -66,6 +67,7 @@ add_executable(magnum-clothsimulation WIN32
 target_link_libraries(magnum-clothsimulation PRIVATE
     Corrade::Main
     Magnum::Application
+    Magnum::DebugTools
     Magnum::GL
     Magnum::Magnum
     Magnum::MeshTools

@@ -29,26 +29,33 @@
  */
 
 #include <Corrade/Containers/Pointer.h>
+#include <Magnum/DebugTools/ColorMap.h>
 #include <Magnum/GL/DefaultFramebuffer.h>
 #include <Magnum/GL/Renderer.h>
 #include <Magnum/GL/Context.h>
 #include <Magnum/GL/Mesh.h>
+#include <Magnum/GL/Texture.h>
+#include <Magnum/GL/TextureFormat.h>
 #include <Magnum/GL/Version.h>
+#include <Magnum/ImageView.h>
 #include <Magnum/Math/Color.h>
-#include <Magnum/MeshTools/Compile.h>
+#include <Magnum/PixelFormat.h>
 #include <Magnum/Platform/Sdl2Application.h>
-#include <Magnum/Primitives/Icosphere.h>
 #include <Magnum/SceneGraph/Camera.h>
 #include <Magnum/SceneGraph/Drawable.h>
 #include <Magnum/SceneGraph/MatrixTransformation3D.h>
 #include <Magnum/SceneGraph/Scene.h>
 #include <Magnum/Shaders/Phong.h>
+#include <Magnum/Shaders/MeshVisualizer.h>
 #include <Magnum/Trade/MeshData.h>
 
 #include "../arcball/ArcBallCamera.h"
-#include "../motionblur/Icosphere.h"
+#include "ClothSolver.h"
 
 namespace Magnum { namespace Examples {
+using Object3D = SceneGraph::Object<SceneGraph::MatrixTransformation3D>;
+using Scene3D  = SceneGraph::Scene<SceneGraph::MatrixTransformation3D>;
+
 class ClothSimulationExample : public Platform::Application {
 public:
     explicit ClothSimulationExample(const Arguments& arguments);
@@ -72,16 +79,47 @@ protected:
     Containers::Pointer<SceneGraph::Camera3D> _camera3D;
     Containers::Pointer<ArcBallCamera>        _arcballCamera;
 
-    Object3D*                           spheres[3];
-    Containers::Pointer<GL::Mesh>       _mesh;
-    Containers::Pointer<Shaders::Phong> _shader;
+    /* Cloth Shading */
+    GL::Mesh                  _mesh{ NoCreate };
+    Shaders::MeshVisualizer3D _shader{ NoCreate };
+    GL::Texture2D             _colormap{ NoCreate };
+
+    /* Cloth simulation */
+    ClothSolver _clothSolver;
 
     bool _pausedMotion = false;
 };
 
 using namespace Math::Literals;
 
-ClothSimulationExample::ClothSimulationExample(const Arguments& arguments) : Platform::Application{arguments, NoCreate} {
+namespace {
+constexpr Vector3   ClothCorner{ -0.5f, -0.5f, 0 };
+constexpr Vector2   ClothSize { 1.0f, 1.0f };
+constexpr Vector2ui ClothResolution { 10, 10 };
+}
+
+class VisualizationDrawable : public SceneGraph::Drawable3D {
+public:
+    explicit VisualizationDrawable(Object3D& object,
+                                   Shaders::MeshVisualizer3D& shader, GL::Mesh& mesh,
+                                   SceneGraph::DrawableGroup3D& drawables) :
+        SceneGraph::Drawable3D{object, &drawables}, _shader(shader),
+        _mesh(mesh) {}
+
+    void draw(const Matrix4& transformation, SceneGraph::Camera3D& camera) {
+        _shader
+            .setTransformationMatrix(transformation)
+            .setProjectionMatrix(camera.projectionMatrix())
+            .draw(_mesh);
+    }
+
+private:
+    Shaders::MeshVisualizer3D& _shader;
+    GL::Mesh&                  _mesh;
+};
+
+ClothSimulationExample::ClothSimulationExample(const Arguments& arguments) :
+    Platform::Application{arguments, NoCreate} {
     /* Setup window */
     {
         const Vector2 dpiScaling = this->dpiScaling({});
@@ -106,54 +144,62 @@ ClothSimulationExample::ClothSimulationExample(const Arguments& arguments) : Pla
         _objCamera3D.emplace(_scene.get());
         _objCamera3D->translate(Vector3::zAxis(3.0f));
 
+        const Deg fov = 45.0_degf;
         _camera3D.emplace(*_objCamera3D);
         _camera3D->setAspectRatioPolicy(SceneGraph::AspectRatioPolicy::Extend)
-            .setProjectionMatrix(Matrix4::perspectiveProjection(35.0_degf, 4.0f / 3.0f, 0.001f, 1000.0f))
+            .setProjectionMatrix(Matrix4::perspectiveProjection(fov,
+                                                                Vector2{ windowSize() }.aspectRatio(),
+                                                                0.001f, 1000.0f))
             .setViewport(GL::defaultFramebuffer.viewport().size());
 
         const Vector3 eye{ Vector3::zAxis(5.0f) };
-        const Vector3 viewCenter{ };
+        const Vector3 viewCenter{ 0 };
         const Vector3 up{ Vector3::yAxis() };
-        const Deg     fov = 45.0_degf;
         _arcballCamera.emplace(*_scene.get(), eye, viewCenter, up, fov, windowSize(), framebufferSize());
         _arcballCamera->setLagging(0.85f);
     }
 
-    _mesh.emplace();
-    *_mesh = MeshTools::compile(Primitives::icosphereSolid(3));
-    _shader.emplace();
+    /* Setup cloth solver */
+    _clothSolver.getCloth().setCloth(ClothCorner, ClothSize, ClothResolution);
 
-    /* Setup point (render as spheres) */ {
-        spheres[0] = new Object3D(_scene.get());
-        (new Icosphere(_mesh.get(), _shader.get(), 0xff0000_rgbf, spheres[0], _drawables.get()))
-            ->translate(Vector3::yAxis(0.25f));
-        (new Icosphere(_mesh.get(), _shader.get(), 0xff0000_rgbf, spheres[0], _drawables.get()))
-            ->translate(Vector3::yAxis(0.25f))
-            .rotateZ(120.0_degf);
-        (new Icosphere(_mesh.get(), _shader.get(), 0xff0000_rgbf, spheres[0], _drawables.get()))
-            ->translate(Vector3::yAxis(0.25f))
-            .rotateZ(240.0_degf);
+    /* Setup cloth rendering */
+    GL::Buffer                         buffer;
+    Containers::ArrayView<const float> data(reinterpret_cast<const Float*>(_clothSolver.getCloth().positions.data()),
+                                            _clothSolver.getCloth().getNumVertices() * 3);
+    buffer.setData(data, GL::BufferUsage::DynamicDraw);
 
-        spheres[1] = new Object3D(_scene.get());
-        (new Icosphere(_mesh.get(), _shader.get(), 0x00ff00_rgbf, spheres[1], _drawables.get()))
-            ->translate(Vector3::yAxis(0.50f));
-        (new Icosphere(_mesh.get(), _shader.get(), 0x00ff00_rgbf, spheres[1], _drawables.get()))
-            ->translate(Vector3::yAxis(0.50f))
-            .rotateZ(120.0_degf);
-        (new Icosphere(_mesh.get(), _shader.get(), 0x00ff00_rgbf, spheres[1], _drawables.get()))
-            ->translate(Vector3::yAxis(0.50f))
-            .rotateZ(240.0_degf);
+    _mesh = GL::Mesh{};
+    _mesh.setCount(_clothSolver.getCloth().getNumVertices())
+        .addVertexBuffer(std::move(buffer), 0,
+                         Shaders::Generic3D::Position{});
 
-        spheres[2] = new Object3D(_scene.get());
-        (new Icosphere(_mesh.get(), _shader.get(), 0x0000ff_rgbf, spheres[2], _drawables.get()))
-            ->translate(Vector3::yAxis(0.75f));
-        (new Icosphere(_mesh.get(), _shader.get(), 0x0000ff_rgbf, spheres[2], _drawables.get()))
-            ->translate(Vector3::yAxis(0.75f))
-            .rotateZ(120.0_degf);
-        (new Icosphere(_mesh.get(), _shader.get(), 0x0000ff_rgbf, spheres[2], _drawables.get()))
-            ->translate(Vector3::yAxis(0.75f))
-            .rotateZ(240.0_degf);
-    }
+    const auto     map = DebugTools::ColorMap::turbo();
+    const Vector2i size{ Int(map.size()), 1 };
+    _colormap = GL::Texture2D{};
+    _colormap
+        .setMinificationFilter(SamplerFilter::Linear)
+        .setMagnificationFilter(SamplerFilter::Linear)
+        .setWrapping(SamplerWrapping::ClampToEdge)
+        .setStorage(1, GL::TextureFormat::RGB8, size)
+        .setSubImage(0, {}, ImageView2D{ PixelFormat::RGB8Unorm, size, map });
+
+    _shader = Shaders::MeshVisualizer3D{
+        Shaders::MeshVisualizer3D::Flag::Wireframe |
+        Shaders::MeshVisualizer3D::Flag::VertexId };
+    _shader
+        .setViewportSize(Vector2{ framebufferSize() })
+        .setColor(0xffffff_rgbf)
+        .setWireframeColor(0xffffff_rgbf)
+        .setWireframeWidth(2.0f)
+        .setColorMapTransformation(0.0f, 1.0f / _clothSolver.getCloth().getNumVertices())
+        .bindColorMapTexture(_colormap);
+
+    auto object = new Object3D{ _scene.get() };
+    (*object)
+        .rotateY(40.0_degf)
+        .rotateX(-30.0_degf)
+    ;
+    new VisualizationDrawable{ *object, _shader, _mesh, *_drawables.get() };
 
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
     GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
@@ -171,7 +217,6 @@ void ClothSimulationExample::drawEvent() {
     }
 
     _arcballCamera->update();
-    //    _camera3D->draw(*drawables);
     _arcballCamera->draw(*_drawables);
 
     swapBuffers();
