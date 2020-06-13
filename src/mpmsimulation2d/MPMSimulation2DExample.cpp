@@ -40,6 +40,7 @@
 #include <Magnum/Math/FunctionsBatch.h>
 #include <Magnum/MeshTools/Compile.h>
 #include <Magnum/Platform/Sdl2Application.h>
+#include <Magnum/Primitives/Square.h>
 #include <Magnum/Primitives/Circle.h>
 #include <Magnum/SceneGraph/Camera.h>
 #include <Magnum/SceneGraph/Drawable.h>
@@ -182,7 +183,7 @@ MPMSimulation2DExample::MPMSimulation2DExample(const Arguments& arguments) : Pla
         SceneObjects* sceneObjs = new SceneObjects;
         sceneObjs->emitterT0 = SDFObject{ gridCenter() + Vector2(10.0f, 10.0f), 30.0f, SDFObject::ObjectType::Circle };
         sceneObjs->emitter   = SDFObject{ gridCenter() + Vector2(15.0f, 20.0f), 15.0f, SDFObject::ObjectType::Circle };
-        sceneObjs->boundary  = SDFObject{ gridCenter(), Float(RadiusCircleBoundary), SDFObject::ObjectType::Circle, false };
+        sceneObjs->boundary  = SDFObject{ gridCenter(), Vector2(RadiusCircleBoundary), SDFObject::ObjectType::Box, false };
         _fluidSolver.emplace(GridStart, GridCellLength, NumGridCells.x(), NumGridCells.y(), sceneObjs);
 
         /* Drawable particles */
@@ -192,7 +193,7 @@ MPMSimulation2DExample::MPMSimulation2DExample(const Arguments& arguments) : Pla
 
         /* Drawable boundary*/
         _drawableBoundary.emplace(_scene.get(), _drawableGroup.get(),
-                                  MeshTools::compile(Primitives::circle2DWireframe(128)));
+                                  MeshTools::compile(Primitives::squareWireframe()));
         _drawableBoundary->setTransformation(Matrix3::scaling(Vector2{ RadiusCircleBoundary + _fluidSolver->particleRadius() }));
         _drawableBoundary->setColor(0xffffff_rgbf);
 
