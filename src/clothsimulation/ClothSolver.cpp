@@ -48,7 +48,7 @@ void MSSSolver::advanceFrame(Float frameDuration) {
         frameTime += substep;
 
         addExternalForces(substep);
-        implicitIntegration(substep);
+        implicitEulerIntegration(substep);
         updateVertexVelocities();
         updateVertexPositions(substep);
     }
@@ -73,7 +73,7 @@ void MSSSolver::addExternalForces(Float dt) {
                         });
 }
 
-void MSSSolver::implicitIntegration(Float dt) {
+void MSSSolver::implicitEulerIntegration(Float dt) {
     _linearSystemSolver.resize(_cloth.getNumVertices() * 3);
     _linearSystemSolver.clear();
 
@@ -135,6 +135,8 @@ void MSSSolver::implicitIntegration(Float dt) {
                                 }
                             }
                         });
+
+    _linearSystemSolver.solve();
 }
 
 void MSSSolver::updateVertexVelocities() {

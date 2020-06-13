@@ -54,7 +54,7 @@ public:
 private:
     Float timestepCFL() const;
     void  addExternalForces(Float dt);
-    void  implicitIntegration(Float dt);
+    void  implicitEulerIntegration(Float dt);
     void  updateVertexVelocities();
     void  updateVertexPositions(Float dt);
     void  forceDerivative(const Vector3& eij, Float dij, Float d0,
