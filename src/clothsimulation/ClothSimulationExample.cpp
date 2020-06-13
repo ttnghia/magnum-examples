@@ -92,12 +92,6 @@ protected:
 
 using namespace Math::Literals;
 
-namespace {
-constexpr Vector3   ClothCorner{ -0.5f, -0.5f, 0 };
-constexpr Vector2   ClothSize { 1.0f, 1.0f };
-constexpr Vector2ui ClothResolution { 10, 10 };
-}
-
 class VisualizationDrawable : public SceneGraph::Drawable3D {
 public:
     explicit VisualizationDrawable(Object3D& object,
@@ -117,6 +111,12 @@ private:
     Shaders::MeshVisualizer3D& _shader;
     GL::Mesh&                  _mesh;
 };
+
+namespace {
+constexpr Vector3   ClothCorner{ -0.5f, -0.5f, 0 };
+constexpr Vector2   ClothSize { 1.0f, 1.0f };
+constexpr Vector2ui ClothResolution { 10, 10 };
+}
 
 ClothSimulationExample::ClothSimulationExample(const Arguments& arguments) :
     Platform::Application{arguments, NoCreate} {

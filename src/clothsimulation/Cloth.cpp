@@ -39,7 +39,7 @@ void Cloth::resetState() {
 }
 
 void Cloth::setCloth(const Vector3& corner,
-                     const Vector2& size, const Vector2ui resolution,
+                     const Vector2& size, const Vector2ui& resolution,
                      UnsignedInt bendingSteps) {
     /* Clear data */
     fixedVertices.clear();
@@ -52,17 +52,23 @@ void Cloth::setCloth(const Vector3& corner,
     positions.resize(resolution.x() * resolution.y());
     texUV.resize(resolution.x() * resolution.y());
     faces.resize((resolution.x() - 1) * (resolution.y() - 1) * 2);
-    bool row_flip = false, column_flip = false;
+    /* Generate position and tex coordinate */
     for(UnsignedInt i = 0; i < resolution.x(); ++i) {
         for(UnsignedInt k = 0; k < resolution.y(); ++k) {
-            /* Generate position and tex coordinate */
-            UnsignedInt   index = resolution.y() * i + k;
-            const Vector3 pos   = corner + Vector3{ spacingX* i, spacingY* k, 0 };
+            const UnsignedInt index = resolution.y() * i + k;
+            CORRADE_INTERNAL_ASSERT(index < getNumVertices());
+
+            const Vector3 pos = corner + Vector3{ spacingX* i, spacingY* k, 0 };
             positions[index] = pos;
             texUV[index]     = (pos - corner).xy() / size;
+        }
+    }
 
-            /* Generate triangles */
-            index = (resolution.y() - 1) * i + k;
+    bool row_flip = false, column_flip = false;
+    for(UnsignedInt i = 0; i < resolution.x() - 1; ++i) {
+        for(UnsignedInt k = 0; k < resolution.y() - 1; ++k) {
+            const UnsignedInt index = (resolution.y() - 1) * i + k;
+            CORRADE_INTERNAL_ASSERT(2 * index + 1 < faces.size());
 
             /* First triangle */
             faces[2 * index ] = { resolution.y() * i + k,
@@ -89,6 +95,8 @@ void Cloth::setCloth(const Vector3& corner,
     for(UnsignedInt i = 0; i < resolution.x(); ++i) {
         for(UnsignedInt k = 0; k < resolution.y(); ++k) {
             UnsignedInt v1 = resolution.y() * i + k;
+            CORRADE_INTERNAL_ASSERT(v1 < getNumVertices());
+
             UnsignedInt v2;
             Vector3     p1 = positions[v1];
             Vector3     p2;
@@ -96,6 +104,7 @@ void Cloth::setCloth(const Vector3& corner,
             /* Horizontal/vertical stretching springs */
             if(i + 1 < resolution.x()) {
                 v2 = resolution.y() * (i + 1) + k;
+                CORRADE_INTERNAL_ASSERT(v2 < getNumVertices());
                 p2 = positions[v2];
                 const auto l0 = (p1 - p2).length();
                 vertexSprings[v1].push_back({ Spring::SpringType::Stretching, v2, l0 });
@@ -103,6 +112,7 @@ void Cloth::setCloth(const Vector3& corner,
             }
             if(k + 1 < resolution.y()) {
                 v2 = resolution.y() * i + k + 1;
+                CORRADE_INTERNAL_ASSERT(v2 < getNumVertices());
                 p2 = positions[v2];
                 const auto l0 = (p1 - p2).length();
                 vertexSprings[v1].push_back({ Spring::SpringType::Stretching, v2, l0 });
@@ -112,6 +122,7 @@ void Cloth::setCloth(const Vector3& corner,
             /* Horizontal/vertical bending springs */
             if(i + 2 < resolution.x()) {
                 v2 = resolution.y() * (i + 2) + k;
+                CORRADE_INTERNAL_ASSERT(v2 < getNumVertices());
                 p2 = positions[v2];
                 const auto l0 = (p1 - p2).length();
                 vertexSprings[v1].push_back({ Spring::SpringType::Bending, v2, l0 });
@@ -119,6 +130,7 @@ void Cloth::setCloth(const Vector3& corner,
             }
             if(k + 2 < resolution.y()) {
                 v2 = resolution.y() * i + k + 2;
+                CORRADE_INTERNAL_ASSERT(v2 < getNumVertices());
                 p2 = positions[v2];
                 const auto l0 = (p1 - p2).length();
                 vertexSprings[v1].push_back({ Spring::SpringType::Bending, v2, l0 });
@@ -130,6 +142,7 @@ void Cloth::setCloth(const Vector3& corner,
                    k + step < resolution.y()) {
                     v1 = resolution.y() * i + k;
                     v2 = resolution.y() * (i + step) + k + step;
+                    CORRADE_INTERNAL_ASSERT(v1 < getNumVertices() && v2 < getNumVertices());
                     p1 = positions[v1];
                     p2 = positions[v2];
                     auto l0 = (p1 - p2).length();
@@ -138,6 +151,7 @@ void Cloth::setCloth(const Vector3& corner,
 
                     v1 = resolution.y() * (i + step) + k;
                     v2 = resolution.y() * i + k + step;
+                    CORRADE_INTERNAL_ASSERT(v1 < getNumVertices() && v2 < getNumVertices());
                     p1 = positions[v1];
                     p2 = positions[v2];
                     l0 = (p1 - p2).length();
