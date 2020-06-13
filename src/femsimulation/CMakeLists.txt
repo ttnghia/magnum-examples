@@ -30,7 +30,7 @@
 
 cmake_minimum_required(VERSION 3.4)
 
-project(FEMSimulation2DExample CXX)
+project(FEMSimulationExample CXX)
 
 # Add module path in case this is project root
 if(PROJECT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
