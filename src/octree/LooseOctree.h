@@ -84,6 +84,8 @@ public:
                         const std::size_t depth);
 
     bool isLeaf() const { return _bIsLeaf; }
+    const Vector3 getCenter() const { return _center; }
+    Float getHalfWidth() const { return _halfWidth; }
 
     /* Get a child node (child idx from 0 to 7) */
     OctreeNode* getChildNode(const std::size_t childIdx) const;
@@ -237,6 +239,10 @@ public:
      * false: incrementally update from the current state
      */
     void setAlwaysRebuild(const bool bAlwaysRebuild) { _bAlwaysRebuild = bAlwaysRebuild; }
+
+    /* Get all memory block of active nodes */
+    const std::unordered_set<OctreeNodeBlock*>& getActiveTreeNodeBlocks() const
+    { return _sActiveTreeNodeBlocks; }
 
     void build();
     void update();
