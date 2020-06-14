@@ -17,37 +17,38 @@
 
 #include <Materials/StVK.h>
 
+namespace Magnum { namespace Examples {
 /****************************************************************************************************/
-template<int DIM, class Real_t>
-MatXxX<DIM, Real_t> StVK<DIM, Real_t>::computeStressTensor(const Mat& F) {
-    const Mat    I = Mat::Identity();
-    const Mat    E = Real_t(0.5) * (F.transpose() * F - I);
-    Mat          P = F * (2 * this->_mu * E + this->_lambda * E.trace() * I);
-    const Real_t J = F.determinant();
+
+Matrix3 StVK::computeStressTensor(const Matrix3& F) {
+    const Matrix3 I = Matrix3{ 1 };
+    const Matrix3 E = Float(0.5) * (F.transposed() * F - I);
+    Matrix3       P = F * (2 * this->_mu * E + this->_lambda * E.trace() * I);
+    const Float   J = F.determinant();
     if(J < 1) {
-        if constexpr (DIM == 2) {
-            P += -_kappa / 6 * std::pow((1 - J), 2) * J * F.inverse().transpose();
-        } else {
-            P += -_kappa / 24 * std::pow((1 - J) / 6, 2) * J * F.inverse().transpose();
-        }
+        P += -_kappa / 24 * std::pow((1 - J) / 6, 2) * J * F.inverted().transposed();
     }
     return P;
 }
 
 /****************************************************************************************************/
-template<int DIM, class Real_t>
-Real_t StVK<DIM, Real_t>::computeEnergy(const Mat& F, const Real_t w) {
-    const Mat I      = Mat::Identity();
-    const Mat E      = Real_t(0.5) * (F.transpose() * F - I);
-    auto      energy = this->_mu * E.squaredNorm() + Real_t(0.5) * this->_lambda * std::pow(E.trace(), 2);
 
-    const Real_t J = F.determinant();
-    if(J < 1) {
-        if constexpr (DIM == 2) {
-            energy += _kappa / 6 * std::pow((1 - J) / 2, 2);
-        } else {
-            energy += _kappa / 12 * std::pow((1 - J) / 6, 3);
+Float StVK::computeEnergy(const Matrix3& F, const Float w) {
+    const Matrix3 I = Matrix3{ 1 };
+    const Matrix3 E = Float(0.5) * (F.transposed() * F - I);
+
+    Float energy{ 0 };
+    for(UnsignedInt i = 0; i < 3; ++i) {
+        for(UnsignedInt j = 0; j < 3; ++j) {
+            energy += E[i][j] * E[i][j];
         }
+    }
+    energy *= this->_mu;
+    energy += Float(0.5) * this->_lambda * std::pow(E.trace(), 2);
+
+    const Float J = F.determinant();
+    if(J < 1) {
+        energy += _kappa / 12 * std::pow((1 - J) / 6, 3);
     }
 
     return w * energy;
@@ -55,11 +56,4 @@ Real_t StVK<DIM, Real_t>::computeEnergy(const Mat& F, const Real_t w) {
 
 /****************************************************************************************************/
 /* Explicit instantiation */
-
-#define INSTANTIATE_StVK(DIM, Real_t) template class StVK<DIM, Real_t>;
-
-INSTANTIATE_StVK(2, float)
-INSTANTIATE_StVK(3, float)
-
-INSTANTIATE_StVK(2, double)
-INSTANTIATE_StVK(3, double)
+} }

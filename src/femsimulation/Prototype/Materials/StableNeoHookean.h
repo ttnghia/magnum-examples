@@ -19,11 +19,16 @@
 
 #include <Materials/Material.h>
 
+#include <Magnum/Magnum.h>
+#include <Magnum/Math/Matrix3.h>
+#include <Magnum/Math/Vector3.h>
+
+namespace Magnum { namespace Examples {
 /****************************************************************************************************/
-template<int DIM, class Real_t>
-class StableNeoHookean : public Material<DIM, Real_t> {
-    COMMON_TYPE_ALIASING(DIM, Real_t)
+
+class StableNeoHookean : public Material {
 public:
-    virtual Mat    computeStressTensor(const Mat& F) override;
-    virtual Real_t computeEnergy(const Mat& F, const Real_t w) override;
+    virtual Matrix3 computeStressTensor(const Matrix3& F) override;
+    virtual Float   computeEnergy(const Matrix3& F, const Float w) override;
 };
+} }

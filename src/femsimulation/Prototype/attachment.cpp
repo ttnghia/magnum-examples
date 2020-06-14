@@ -16,20 +16,17 @@
  */
 
 #include <Attachment.h>
-
+namespace Magnum { namespace Examples {
 /****************************************************************************************************/
-template<int DIM, class Real_t>
-void Attachment<DIM, Real_t>::evaluateGradient(const StdVT<Vec>& x, StdVT<Vec>& gradient) {
+
+void Attachment::evaluateGradient(const std::vector<Vector3>& x, std::vector<Vector3>& gradient) {
     gradient[_idx] += _stiffness * (x[_idx] - _fixed_pos);
 }
 
-template<int DIM, class Real_t>
-Real_t Attachment<DIM, Real_t>::evaluateEnergy(const StdVT<Vec>& x) {
-    return Real_t(0.5) * _stiffness * (x[_idx] - _fixed_pos).squaredNorm();
+Float Attachment::evaluateEnergy(const std::vector<Vector3>& x) {
+    const Float d = (x[_idx] - _fixed_pos).length();
+    return Float(0.5) * _stiffness * d * d;
 }
 
 /****************************************************************************************************/
-template class Attachment<2, float>;
-template class Attachment<3, float>;
-template class Attachment<2, double>;
-template class Attachment<3, double>;
+} }

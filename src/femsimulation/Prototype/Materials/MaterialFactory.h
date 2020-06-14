@@ -21,8 +21,9 @@
 #include <memory>
 
 /****************************************************************************************************/
-template<int DIM, class Real_t>
+namespace Magnum { namespace Examples {
 class MaterialFactory {
 public:
-    static std::shared_ptr<Material<DIM, Real_t>> create();
+    static std::shared_ptr<Material> create();
 };
+} }

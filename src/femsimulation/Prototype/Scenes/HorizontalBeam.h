@@ -19,12 +19,11 @@
 
 #include <Scenes/Scene.h>
 
-/****************************************************************************************************/
-template<int DIM, class Real_t, class IntType>
-class HorizontalBeam : public Scene<DIM, Real_t, IntType> {
-    COMMON_TYPE_ALIASING(DIM, Real_t)
+namespace Magnum { namespace Examples {
+class HorizontalBeam : public Scene {
 public:
-    virtual void setupScene(StdVT<Vec>&          vertPositions,
-                            StdVT<IntType>&      fixedVertIndices,
-                            StdVT<Element<DIM>>& elements) override;
+    virtual void setupScene(std::vector<Vector3>&     vertPositions,
+                            std::vector<UnsignedInt>& fixedVertIndices,
+                            std::vector<Element>&     elements) override;
 };
+} }

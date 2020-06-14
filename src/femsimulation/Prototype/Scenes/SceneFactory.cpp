@@ -17,6 +17,7 @@
 
 #include <SimParams.h>
 #include <algorithm>
+#include <string>
 
 /****************************************************************************************************/
 /* Include all scene headers */
@@ -24,29 +25,15 @@
 
 #include <Scenes/HorizontalBeam.h>
 
-/****************************************************************************************************/
-template<int DIM, class Real_t, class IntType>
-std::shared_ptr<Scene<DIM, Real_t, IntType>> SceneFactory<DIM, Real_t, IntType>::create() {
-    String sceneName(g_sceneName);
+namespace Magnum { namespace Examples {
+std::shared_ptr<Scene> SceneFactory::create() {
+    std::string sceneName(g_sceneName);
     std::transform(sceneName.begin(), sceneName.end(), sceneName.begin(), std::tolower);
     if(sceneName.find("beam") != std::string::npos) {
-        return std::dynamic_pointer_cast<Scene<DIM, Real_t, IntType>>(
-            std::make_shared<HorizontalBeam<DIM, Real_t, IntType>>());
+        return std::dynamic_pointer_cast<Scene>(
+            std::make_shared<HorizontalBeam>());
     }
 
     return nullptr;
 }
-
-/****************************************************************************************************/
-/* Explicit instantiation */
-#define INSTANTIATE_SceneFactory(DIM, Real_t, IntType) template class SceneFactory<DIM, Real_t, IntType>;
-
-INSTANTIATE_SceneFactory(2, float, int)
-INSTANTIATE_SceneFactory(2, float, u32)
-INSTANTIATE_SceneFactory(3, float, int)
-INSTANTIATE_SceneFactory(3, float, u32)
-
-// INSTANTIATE_SceneFactory(2, double, int)
-// INSTANTIATE_SceneFactory(2, double, u32)
-// INSTANTIATE_SceneFactory(3, double, int)
-// INSTANTIATE_SceneFactory(3, double, u32)
+} }

@@ -17,22 +17,24 @@
 
 #pragma once
 
-#include <Common/Setup.h>
 #include <SimParams.h>
 
-/****************************************************************************************************/
-template<int DIM, class Real_t>
+#include <Magnum/Magnum.h>
+#include <Magnum/Math/Matrix3.h>
+#include <Magnum/Math/Vector3.h>
+
+namespace Magnum { namespace Examples {
 class Material {
-    COMMON_TYPE_ALIASING(DIM, Real_t)
 public:
     Material()          = default;
     virtual ~Material() = default;
-    virtual Mat computeStressTensor(const Mat& F) = 0;
-    virtual Real_t computeEnergy(const Mat& /* F */, const Real_t /* w */) {
+    virtual Matrix3 computeStressTensor(const Matrix3& F) = 0;
+    virtual Float computeEnergy(const Matrix3& /* F */, const Float /* w */) {
         //Fatal() << "Not implemented!"; return 0;
         return 0;
     }
 
-    Real_t _mu     = 100;
-    Real_t _lambda = 25;
+    Float _mu     = 100;
+    Float _lambda = 25;
 };
+} }

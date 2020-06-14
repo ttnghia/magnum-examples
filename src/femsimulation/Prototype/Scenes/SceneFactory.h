@@ -20,9 +20,9 @@
 #include <Scenes/Scene.h>
 #include <memory>
 
-/****************************************************************************************************/
-template<int DIM, class Real_t, class IntType>
+namespace Magnum { namespace Examples {
 class SceneFactory {
 public:
-    static std::shared_ptr<Scene<DIM, Real_t, IntType>> create();
+    static std::shared_ptr<Scene> create();
 };
+} }

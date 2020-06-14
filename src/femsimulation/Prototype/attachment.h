@@ -16,27 +16,29 @@
  */
 
 #pragma once
+#include <Magnum/Magnum.h>
+#include <Magnum/Math/Matrix3.h>
+#include <Magnum/Math/Vector3.h>
 
-#include <Common/Setup.h>
-
+#include <vector>
+namespace Magnum { namespace Examples {
 /****************************************************************************************************/
-template<int DIM, class Real_t>
+
 class Attachment {
-    COMMON_TYPE_ALIASING(DIM, Real_t)
-
 public:
-    Attachment(const u32 idx, const StdVT<Vec>& x) : _fixed_pos(x[idx]), _idx(idx) {}
+    Attachment(const UnsignedInt idx, const std::vector<Vector3>& x) : _fixed_pos(x[idx]), _idx(idx) {}
 
-    void   evaluateGradient(const StdVT<Vec>& x, StdVT<Vec>& gradient);
-    Real_t evaluateEnergy(const StdVT<Vec>& x);
+    void  evaluateGradient(const std::vector<Vector3>& x, std::vector<Vector3>& gradient);
+    Float evaluateEnergy(const std::vector<Vector3>& x);
 
-    u32 getVertexIdx() const { return _idx; }
-    Vec getFixedPosition() const { return _fixed_pos; }
-    void setFixedPosition(const Vec& pos) { _fixed_pos = pos; }
+    UnsignedInt getVertexIdx() const { return _idx; }
+    Vector3 getFixedPosition() const { return _fixed_pos; }
+    void setFixedPosition(const Vector3& pos) { _fixed_pos = pos; }
 
 private:
-    Vec _fixed_pos; /* can be changed for animation */
+    Vector3 _fixed_pos; /* can be changed for animation */
 
-    const u32 _idx;
-    inline static constexpr Real_t _stiffness = 1e6f;
+    const UnsignedInt             _idx;
+    inline static constexpr Float _stiffness = 1e6f;
 };
+} }

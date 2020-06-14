@@ -39,9 +39,6 @@
 
 #include <memory>
 
-template<int DIM, class Real_t> class Animation;
-template<int DIM, class Real_t, class IntType> class CollisionObject;
-
 namespace Magnum { namespace Examples {
 /* 2D Affine Particle-in-Cell fluid solver */
 class FEMSolver {
@@ -57,43 +54,39 @@ private:
 
     //    ParticleData _particles;
 
-    u64 numVerts() const { return _vertPos.size(); }
-    u64 numElements() const { return _elements.size(); }
+    std::size_t numVerts() const { return _vertPos.size(); }
+    std::size_t numElements() const { return _elements.size(); }
 
-    COMMON_TYPE_ALIASING(3, Float)
-    bool performGradientDescentOneIteration(StdVT<Vec>& x);
-    void evaluateGradient(const StdVT<Vec>& x, StdVT<Vec>& _gradient);
-    real evaluateEnergy(const StdVT<Vec>& x);
-    real lineSearch(const StdVT<Vec>& x, const StdVT<Vec>& gradient_dir, const StdVT<Vec>& descent_dir);
+    bool  performGradientDescentOneIteration(std::vector<Vector3>& x);
+    void  evaluateGradient(const std::vector<Vector3>& x, std::vector<Vector3>& _gradient);
+    Float evaluateEnergy(const std::vector<Vector3>& x);
+    Float lineSearch(const std::vector<Vector3>& x, const std::vector<Vector3>& gradient_dir, const std::vector<Vector3>& descent_dir);
 
     void step();
     void draw();
     void reset() { _time = 0; _frame = 0; }
 
     ////////////////////////////////////////////////////////////////////////////////
-    StdVT<Element<3>>           _elements;
-    StdVT<Vec>                  _vertPos;
-    StdVT<u32>                  _fixedVerts;
-    StdVT<Attachment<3, Float>> _attachmentConstr;
-    StdVT<Vec>                  _gradient;
-    StdVT<Vec>                  _externalForces;
-    StdVT<Vec>                  _vertPredictedPos;
-    StdVT<Vec>                  _oldVertPos;
-    StdVT<Vec>                  _vertVel;
+    std::vector<Element>     _elements;
+    std::vector<Vector3>     _vertPos;
+    std::vector<UnsignedInt> _fixedVerts;
+    std::vector<Attachment>  _attachmentConstr;
+    std::vector<Vector3>     _gradient;
+    std::vector<Vector3>     _externalForces;
+    std::vector<Vector3>     _vertPredictedPos;
+    std::vector<Vector3>     _oldVertPos;
+    std::vector<Vector3>     _vertVel;
 
     /* Variable for line search */
-    inline static constexpr real _ls_alpha = real(1.0);
-    inline static constexpr real _ls_beta  = real(0.3);
+    inline static constexpr Float _ls_alpha = Float(1.0);
+    inline static constexpr Float _ls_beta  = Float(0.3);
 
-    inline static constexpr real _mass    = real(1.0);
-    inline static constexpr real _massInv = real(1.0);
+    inline static constexpr Float _mass    = Float(1.0);
+    inline static constexpr Float _massInv = Float(1.0);
 
     /* Frame counter */
-    double _time { 0 };
-    u64    _frame { 0 };
-
-    std::shared_ptr<Animation<3, real>>                   _animation;
-    StdVT<std::shared_ptr<CollisionObject<3, real, u32>>> _CollisionObjs;
+    double      _time { 0 };
+    std::size_t _frame { 0 };
 };
 } }
 

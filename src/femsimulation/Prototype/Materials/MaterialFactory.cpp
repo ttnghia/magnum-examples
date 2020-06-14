@@ -17,6 +17,7 @@
 
 #include <SimParams.h>
 #include <algorithm>
+#include <string>
 
 /****************************************************************************************************/
 /* Include all material headers */
@@ -27,28 +28,19 @@
 #include <Materials/StVK.h>
 
 /****************************************************************************************************/
-template<int DIM, class Real_t>
-std::shared_ptr<Material<DIM, Real_t>> MaterialFactory<DIM, Real_t>::create() {
-    String materialName(g_materialType);
+namespace Magnum { namespace Examples {
+std::shared_ptr<Material> MaterialFactory::create() {
+    std::string materialName(g_materialType);
     std::transform(materialName.begin(), materialName.end(), materialName.begin(), std::tolower);
     if(materialName.find("stable") != std::string::npos) {
-        return std::dynamic_pointer_cast<Material<DIM, Real_t>>(
-            std::make_shared<StableNeoHookean<DIM, Real_t>>());
+        return std::dynamic_pointer_cast<Material>(
+            std::make_shared<StableNeoHookean>());
     } else if(materialName.find("neo") != std::string::npos) {
-        return std::dynamic_pointer_cast<Material<DIM, Real_t>>(
-            std::make_shared<NeoHookean<DIM, Real_t>>());
+        return std::dynamic_pointer_cast<Material>(
+            std::make_shared<NeoHookean>());
     }
 
     //    Fatal() << "Invalid material type";
     return nullptr;
 }
-
-/****************************************************************************************************/
-/* Explicit instantiation */
-#define INSTANTIATE_MaterialFactory(DIM, Real_t) template class MaterialFactory<DIM, Real_t>;
-
-INSTANTIATE_MaterialFactory(2, float)
-INSTANTIATE_MaterialFactory(3, float)
-
-// INSTANTIATE_MaterialFactory(2, double)
-// INSTANTIATE_MaterialFactory(3, double)
+} }

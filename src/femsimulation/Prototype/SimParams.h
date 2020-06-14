@@ -17,27 +17,28 @@
 
 #pragma once
 
-#include <Common/Setup.h>
-
+//#include <Common/Setup.h>
+#include <Magnum/Magnum.h>
+namespace Magnum { namespace Examples {
 /****************************************************************************************************/
 /* Common params */
-extern const u64 g_FPS;
-extern const u64 g_NumThreads;
+extern const std::size_t g_FPS;
+extern const std::size_t g_NumThreads;
 
 /****************************************************************************************************/
 /* Simulation params */
 extern const bool  g_bIntegrationWithLineSearch;
-extern const real  g_gravity;
-extern const real  g_damping;
-extern const real  g_dt;
+extern const Float g_gravity;
+extern const Float g_damping;
+extern const Float g_dt;
 extern const char* g_sceneName;
 
 /****************************************************************************************************/
 /* Material */
 extern const char* g_materialType;
-extern const real  g_mu;
-extern const real  g_lambda;
-extern const real  g_kappa;
+extern const Float g_mu;
+extern const Float g_lambda;
+extern const Float g_kappa;
 extern const bool  g_bAllowSceneToChangeMaterialStiffnesses;
 
 /****************************************************************************************************/
@@ -52,11 +53,12 @@ extern const double g_TorqueRegularization;
 /* Animation */
 extern const char* g_AnimationType;
 extern const bool  g_bAnimation;
-extern const real  g_AnimationStartTime;
-extern const real  g_AnimationDuration;
+extern const Float g_AnimationStartTime;
+extern const Float g_AnimationDuration;
 
 /****************************************************************************************************/
 /* Collision */
 extern const char* g_CollisionObjectType;
 extern const bool  g_bRemoveContact;
-extern const real  g_RemoveContactTime;
+extern const Float g_RemoveContactTime;
+} }

@@ -16,34 +16,35 @@
  */
 
 #pragma once
+#include <Magnum/Magnum.h>
+#include <Magnum/Math/Matrix3.h>
+#include <Magnum/Math/Vector3.h>
 
-#include <Common/Setup.h>
-
-template<int DIM, class Real_t> class Material;
+#include <memory>
+#include <vector>
+namespace Magnum { namespace Examples {
+class Material;
 /****************************************************************************************************/
-template<int DIM>
 class Element {
-    COMMON_TYPE_ALIASING(DIM, real)
-
 public:
-    Element(const StdVT<u32> idx, const StdVT<Vec>& x);
+    Element(const std::vector<UnsignedInt> idx, const std::vector<Vector3>& x);
 
-    void evaluateGradient(const StdVT<Vec>& x, StdVT<Vec>& gradient);
-    real evaluateEnergy(const StdVT<Vec>& x);
+    void  evaluateGradient(const std::vector<Vector3>& x, std::vector<Vector3>& gradient);
+    Float evaluateEnergy(const std::vector<Vector3>& x);
 
-    Mat  getMatrixDs(const StdVT<Vec>& x);
-    Mat  getDeformationGradient(const StdVT<Vec>& x);
-    real getTorqueMagnitude(const Mat& H) const;
-    void updateElementWeight();
+    Matrix3 getMatrixDs(const std::vector<Vector3>& x);
+    Matrix3 getDeformationGradient(const std::vector<Vector3>& x);
+    void    updateElementWeight();
 
-    void draw(StdVT<Vec>& p);
+    void draw(std::vector<Vector3>& p);
 
-    StdVT<u32> _idx;
+    std::vector<UnsignedInt> _idx;
 
-    Mat  _Dm;
-    Mat  _Dm_inv;
-    Mat  _Dm_invT;
-    real _w;
+    Matrix3 _Dm;
+    Matrix3 _Dm_inv;
+    Matrix3 _Dm_invT;
+    Float   _w;
 
-    std::shared_ptr<Material<DIM, real>> _material;
+    std::shared_ptr<Material> _material;
 };
+} }

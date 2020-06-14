@@ -17,28 +17,30 @@
 
 #pragma once
 
-#include <Common/Setup.h>
 #include <SimParams.h>
 
 #include <Element.h>
 #include <Materials/Material.h>
 
-/****************************************************************************************************/
-template<int DIM, class Real_t, class IntType>
+#include <Magnum/Magnum.h>
+#include <Magnum/Math/Matrix3.h>
+#include <Magnum/Math/Vector3.h>
+
+namespace Magnum { namespace Examples {
 class Scene {
-    COMMON_TYPE_ALIASING(DIM, Real_t)
 public:
     Scene()          = default;
     virtual ~Scene() = default;
-    virtual void setupScene(StdVT<Vec>&          vertPositions,
-                            StdVT<IntType>&      fixedVertIndices,
-                            StdVT<Element<DIM>>& elements) = 0;
+    virtual void setupScene(std::vector<Vector3>&     vertPositions,
+                            std::vector<UnsignedInt>& fixedVertIndices,
+                            std::vector<Element>&     elements) = 0;
 
 protected:
-    void setMaterialParameters(StdVT<Element<DIM>>& elements, const real mu, const real lambda) {
+    void setMaterialParameters(std::vector<Element>& elements, const Float mu, const Float lambda) {
         for(auto& e: elements) {
             e._material->_mu     = mu;
             e._material->_lambda = lambda;
         }
     }
 };
+} }

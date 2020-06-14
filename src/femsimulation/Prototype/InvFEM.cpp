@@ -8,7 +8,6 @@
 #include <math.h>
 #include <fstream>
 
-#include <Common/Setup.h>
 #include "FEMSolver/FEMSolver.h"
 
 namespace Magnum { namespace Examples {

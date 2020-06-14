@@ -36,13 +36,16 @@
 
 //#include <InverseSolver/InverseElements.h>
 
-#include <Common/ParallelHelpers/TaskScheduler.h>
-#include <Common/ParallelHelpers/Scheduler.h>
-#include <Common/ParallelHelpers/ParallelSTL.h>
-
 #include <Scenes/SceneFactory.h>
 
 namespace Magnum { namespace Examples {
+template<class IndexType, class Function>
+void parallel_for(IndexType endIdx, Function&& function) {
+    for(IndexType i = 0; i < endIdx; ++i) {
+        function(i);
+    }
+}
+
 void FEMSolver::advanceFrame(Float frameDuration) {
     Float frameTime = 0;
 
@@ -63,7 +66,7 @@ void FEMSolver::advanceFrame(Float frameDuration) {
 
 Float FEMSolver::timestepCFL() const {
     Float maxVel = 0;
-    //    _grid.u.loop1D([&](std::size_t i) {
+    //    _grid.u.loop1D([&](std::std::size_t i) {
     //                       maxVel = Math::max(maxVel, Math::abs(_grid.u.data()[i]));
     //                   });
 
@@ -83,13 +86,13 @@ FEMSolver::FEMSolver() {
     //TaskScheduler::setNumThreads(g_NumThreads);
 
     /* Setup scene  */
-    const auto scene = SceneFactory<3, Float, u32>::create();
+    const auto scene = SceneFactory::create();
     scene->setupScene(_vertPos, _fixedVerts, _elements);
 
     ////////////////////////////////////////////////////////////////////////////////
     /* Setup animation and collision objects */
-    //    _animation = AnimationFactory<3, Float>::create();
-    //    auto collisionObj = CollisionObjectFactory<3, Float, u32>::create();
+    //    _animation = AnimationFactory::create();
+    //    auto collisionObj = CollisionObjectFactory<3, Float, UnsignedInt>::create();
     //    if(collisionObj != nullptr) {
     //        _CollisionObjs.emplace_back(std::move(collisionObj));
     //    }
@@ -97,11 +100,11 @@ FEMSolver::FEMSolver() {
     ////////////////////////////////////////////////////////////////////////////////
     /* Run inverse simulation */
     //    if(g_bInverseSimulation) {
-    //        StdVT<std::pair<u32, Vec>> collisionInfo;
+    //        std::vector<std::pair<UnsignedInt, Vector3>> collisionInfo;
     //        for(auto& colObj : _CollisionObjs) {
     //            colObj->findCollision(_vertPos, collisionInfo);
     //        }
-    //        InverseSolver::inverseElements<3, Float, u32>(
+    //        InverseSolver::inverseElements<3, Float, UnsignedInt>(
     //            _vertPos, _fixedVerts,
     //            collisionInfo,
     //            _elements, g_gravity,
@@ -115,16 +118,16 @@ FEMSolver::FEMSolver() {
     ////////////////////////////////////////////////////////////////////////////////
     /* Setup variables for integration */
     for(const auto fi : _fixedVerts) {
-        _attachmentConstr.push_back(Attachment<3, Float>(fi, _vertPos));
+        _attachmentConstr.push_back(Attachment(fi, _vertPos));
     }
 
     _gradient.resize(numVerts());
-    _externalForces.assign(numVerts(), Vec::Zero());
-    for(u64 v = 0; v < numVerts(); ++v) {
+    _externalForces.assign(numVerts(), Vector3 { 0 });
+    for(std::size_t v = 0; v < numVerts(); ++v) {
         _externalForces[v][1] = -g_gravity;
     }
-    _vertVel.assign(numVerts(), Vec::Zero());
-    _vertPredictedPos.assign(numVerts(), Vec::Zero());
+    _vertVel.assign(numVerts(), Vector3 { 0 });
+    _vertPredictedPos.assign(numVerts(), Vector3 { 0 });
 }
 
 /****************************************************************************************************/
@@ -132,10 +135,6 @@ FEMSolver::FEMSolver() {
 void FEMSolver::draw() {
     for(auto& e : _elements) {
         e.draw(_vertPos);
-    }
-
-    for(auto& colObj :_CollisionObjs) {
-        //colObj->draw();
     }
 
     /* Draw fixed vertices */
@@ -165,7 +164,7 @@ void FEMSolver::draw() {
 void FEMSolver::step() {
     /* Update system time and perform animation */
     _time += static_cast<double>(g_dt);
-    _frame = static_cast<u64>(std::floor(_time * g_FPS));
+    _frame = static_cast<std::size_t>(std::floor(_time * g_FPS));
     //_animation->animate(_time, _vertPos, _attachmentConstr);
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -179,8 +178,8 @@ void FEMSolver::step() {
     if(g_bIntegrationWithLineSearch) {
         const auto hSqr_mInv_over_2 = g_dt * g_dt * _massInv * Float(0.5);
         _oldVertPos = _vertPos;
-        Scheduler::parallel_for(
-            numVerts(), [&](u64 vIdx) {
+        parallel_for(
+            numVerts(), [&](std::size_t vIdx) {
                 _vertPredictedPos[vIdx] = _vertPos[vIdx] + _vertVel[vIdx] * g_dt +
                                           hSqr_mInv_over_2 * _externalForces[vIdx];
             });
@@ -192,44 +191,50 @@ void FEMSolver::step() {
             _vertPos[fixedConstr.getVertexIdx()] = fixedConstr.getFixedPosition();
         }
 
-        Scheduler::parallel_for(
-            numVerts(), [&](u64 vIdx) {
-                Vec vel = 2 * (_vertPos[vIdx] - _oldVertPos[vIdx]) / g_dt -
-                          _vertVel[vIdx];
+        parallel_for(
+            numVerts(), [&](std::size_t vIdx) {
+                Vector3 vel = 2 * (_vertPos[vIdx] - _oldVertPos[vIdx]) / g_dt -
+                              _vertVel[vIdx];
                 _vertVel[vIdx] = vel * (1 - g_damping);
             });
     } else { /* Explicit integration */
         for(auto& grad: _gradient) {
-            grad.setZero();
+            grad = Vector3{ 0 };
         }
 
         /* Not thread-safe */
-        for(u64 ei = 0; ei < numElements(); ++ei) {
+        for(std::size_t ei = 0; ei < numElements(); ++ei) {
             _elements[ei].evaluateGradient(_vertPos, _gradient);
         }
 
-        Scheduler::parallel_for(numVerts(), [&](u64 vIdx) { _gradient[vIdx].y() += g_gravity; });
+        parallel_for(numVerts(), [&](std::size_t vIdx) { _gradient[vIdx].y() += g_gravity; });
 
         for(const auto vi:_fixedVerts) {
-            _gradient[vi].setZero();
+            _gradient[vi] = Vector3{ 0 };
         }
 
-        Scheduler::parallel_for(numVerts(), [&](u64 vIdx) { _vertPos[vIdx] -= _gradient[vIdx] * g_dt; });
+        parallel_for(numVerts(), [&](std::size_t vIdx) { _vertPos[vIdx] -= _gradient[vIdx] * g_dt; });
     }
 }
 
 /****************************************************************************************************/
 
-bool FEMSolver::performGradientDescentOneIteration(StdVT<Vec>& x) {
+bool FEMSolver::performGradientDescentOneIteration(std::vector<Vector3>& x) {
     static constexpr Float eps = Float(1e-6);
     evaluateGradient(x, _gradient);
-    if(ParallelSTL::maxAbs<3, Float>(_gradient) < eps) {
-        return true;
+
+    Float maxAbs{ 0 };
+    for(const Vector3& grad: _gradient) {
+        for(UnsignedInt i = 0; i < 3; ++i) {
+            if(std::abs(grad[i]) < eps) {
+                return true;
+            }
+        }
     }
 
     // assign descent direction
-    StdVT<Vec> descent_dir(_gradient.size());
-    for(u64 i = 0; i < _gradient.size(); ++i) {
+    std::vector<Vector3> descent_dir(_gradient.size());
+    for(std::size_t i = 0; i < _gradient.size(); ++i) {
         descent_dir[i] = -_gradient[i];
     }
 
@@ -237,7 +242,7 @@ bool FEMSolver::performGradientDescentOneIteration(StdVT<Vec>& x) {
     Float step_size = lineSearch(x, _gradient, descent_dir);
 
     // update x
-    Scheduler::parallel_for(numVerts(), [&](u64 vIdx) { x[vIdx] += descent_dir[vIdx] * step_size; });
+    parallel_for(numVerts(), [&](std::size_t vIdx) { x[vIdx] += descent_dir[vIdx] * step_size; });
 
     if(step_size < eps) {
         return true;
@@ -250,8 +255,8 @@ bool FEMSolver::performGradientDescentOneIteration(StdVT<Vec>& x) {
 
 /****************************************************************************************************/
 
-void FEMSolver::evaluateGradient(const StdVT<Vec>& x, StdVT<Vec>& gradient) {
-    gradient.assign(numVerts(), Vec::Zero());
+void FEMSolver::evaluateGradient(const std::vector<Vector3>& x, std::vector<Vector3>& gradient) {
+    gradient.assign(numVerts(), Vector3 { 0 });
 
     for(auto& e : _elements) {
         e.evaluateGradient(x, gradient);
@@ -261,18 +266,19 @@ void FEMSolver::evaluateGradient(const StdVT<Vec>& x, StdVT<Vec>& gradient) {
     }
 
     Float h_square = g_dt * g_dt;
-    Scheduler::parallel_for(numVerts(), [&](u64 vIdx) {
-                                gradient[vIdx] = _mass * (x[vIdx] - _vertPredictedPos[vIdx]) +
-                                                 0.5f * h_square * gradient[vIdx];
-                            });
+    parallel_for(numVerts(), [&](std::size_t vIdx) {
+                     gradient[vIdx] = _mass * (x[vIdx] - _vertPredictedPos[vIdx]) +
+                                      0.5f * h_square * gradient[vIdx];
+                 });
 }
 
 /****************************************************************************************************/
 
-Float FEMSolver::evaluateEnergy(const StdVT<Vec>& x) {
+Float FEMSolver::evaluateEnergy(const std::vector<Vector3>& x) {
     Float inertia_term = 0;
-    for(u64 i = 0; i < numVerts(); ++i) {
-        inertia_term += Float(0.5) * (x[i] - _vertPredictedPos[i]).squaredNorm() * _mass;
+    for(std::size_t i = 0; i < numVerts(); ++i) {
+        const Float d = (x[i] - _vertPredictedPos[i]).length();
+        inertia_term += Float(0.5) * d * d * _mass;
     }
     Float h_square = g_dt * g_dt;
 
@@ -291,13 +297,13 @@ Float FEMSolver::evaluateEnergy(const StdVT<Vec>& x) {
 
 /****************************************************************************************************/
 
-Float FEMSolver::lineSearch(const StdVT<Vec>& x, const StdVT<Vec>& gradient_dir,
-                            const StdVT<Vec>& descent_dir) {
+Float FEMSolver::lineSearch(const std::vector<Vector3>& x, const std::vector<Vector3>& gradient_dir,
+                            const std::vector<Vector3>& descent_dir) {
     static constexpr Float eps = Float(1e-5);
 
-    StdVT<Vec> x_plus_tdx(numVerts());
-    Float      t = 1.0f / _ls_beta;
-    Float      lhs, rhs;
+    std::vector<Vector3> x_plus_tdx(numVerts());
+    Float                t = 1.0f / _ls_beta;
+    Float                lhs, rhs;
 
     Float currentObjectiveValue;
     try {
@@ -308,8 +314,8 @@ Float FEMSolver::lineSearch(const StdVT<Vec>& x, const StdVT<Vec>& gradient_dir,
 
     do {
         t *= _ls_beta;
-        Scheduler::parallel_for(
-            numVerts(), [&](u64 idx) {
+        parallel_for(
+            numVerts(), [&](std::size_t idx) {
                 x_plus_tdx[idx] = x[idx] + t * descent_dir[idx];
             });
 
@@ -322,8 +328,9 @@ Float FEMSolver::lineSearch(const StdVT<Vec>& x, const StdVT<Vec>& gradient_dir,
         }
 
         rhs = currentObjectiveValue;
-        for(u64 i = 0; i < numVerts(); ++i) {
-            rhs -= _ls_alpha * t * (gradient_dir[i].squaredNorm());
+        for(std::size_t i = 0; i < numVerts(); ++i) {
+            const Float d = gradient_dir[i].length();
+            rhs -= _ls_alpha * t * d * d;
         }
 
         if(lhs >= rhs) {

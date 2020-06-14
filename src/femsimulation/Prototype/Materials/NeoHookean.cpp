@@ -17,25 +17,19 @@
 
 #include <Materials/NeoHookean.h>
 
+namespace Magnum { namespace Examples {
 /****************************************************************************************************/
-template<int DIM, class Real_t>
-MatXxX<DIM, Real_t> NeoHookean<DIM, Real_t>::computeStressTensor(const Mat& F) {
-    Real_t J = F.determinant();
+
+Matrix3 NeoHookean::computeStressTensor(const Matrix3& F) {
+    Float J = F.determinant();
     if(J <= 0) {
-        J = Real_t(1e-20);
+        J = Float(1e-20);
     }
-    const Mat FinvT = F.inverse().transpose();
-    const Mat P     = this->_mu * (F - FinvT) + this->_lambda * std::log(J) * FinvT;
+    const Matrix3 FinvT = F.inverted().transposed();
+    const Matrix3 P     = this->_mu * (F - FinvT) + this->_lambda * std::log(J) * FinvT;
     return P;
 }
 
 /****************************************************************************************************/
 /* Explicit instantiation */
-
-#define INSTANTIATE_NeoHookean(DIM, Real_t) template class NeoHookean<DIM, Real_t>;
-
-INSTANTIATE_NeoHookean(2, float)
-INSTANTIATE_NeoHookean(3, float)
-
-INSTANTIATE_NeoHookean(2, double)
-INSTANTIATE_NeoHookean(3, double)
+} }

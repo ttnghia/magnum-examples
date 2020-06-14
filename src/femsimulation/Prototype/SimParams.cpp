@@ -16,18 +16,18 @@
  */
 
 #include <SimParams.h>
-
+namespace Magnum { namespace Examples {
 /****************************************************************************************************/
 /* Common params */
-const u64 g_FPS        = 30; /* target 30 frame per second */
-const u64 g_NumThreads = 0;  /* numThreads = 0 mean using all threads */
+const std::size_t g_FPS        = 30; /* target 30 frame per second */
+const std::size_t g_NumThreads = 0;  /* numThreads = 0 mean using all threads */
 
 /****************************************************************************************************/
 /* Simulation params */
-const bool g_bIntegrationWithLineSearch = true;
-const real g_gravity = 10;
-const real g_damping = real(5e-3);
-const real g_dt      = real(1e-3);
+const bool  g_bIntegrationWithLineSearch = true;
+const Float g_gravity = 10;
+const Float g_damping = Float(5e-3);
+const Float g_dt      = Float(1e-3);
 
 /****************************************************************************************************/
 /* Scene names */
@@ -43,9 +43,9 @@ const char* g_materialType = "neo";
 //const char* g_materialType = "stvk";
 const bool g_bAllowSceneToChangeMaterialStiffnesses = true;
 
-const real g_lambda = 25;
-const real g_kappa  = 200;
-const real g_mu     = 1000; /* can be overriden in Scene classes */
+const Float g_lambda = 25;
+const Float g_kappa  = 200;
+const Float g_mu     = 1000; /* can be overriden in Scene classes */
 
 /****************************************************************************************************/
 /* Inverse simulation */
@@ -60,12 +60,13 @@ const double g_TorqueRegularization = 1; /* value < 0 mean hard constraint */
 /* Animation */
 const char* g_AnimationType      = "down-up";
 const bool  g_bAnimation         = true;
-const real  g_AnimationStartTime = real(6);       /* start after number of secs */
-const real  g_AnimationDuration  = real(1);       /* duration in secs */
+const Float g_AnimationStartTime = Float(6); /* start after number of secs */
+const Float g_AnimationDuration  = Float(1); /* duration in secs */
 
 /****************************************************************************************************/
 /* Collision */
 const char* g_CollisionObjectType = "rectangle";
 //const char* g_CollisionObjectType = "nope";
-const bool g_bRemoveContact    = true;
-const real g_RemoveContactTime = 3; /* time to remove collision object */
+const bool  g_bRemoveContact    = true;
+const Float g_RemoveContactTime = 3; /* time to remove collision object */
+} }
