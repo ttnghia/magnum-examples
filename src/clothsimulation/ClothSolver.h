@@ -42,7 +42,6 @@ public:
     void advanceFrame(Float frameDuration);
 
     /* Simulation parameter accessors */
-    Float& constraintStiffness() { return _constraintStiffness; }
     Float& stretchingStiffness() { return _stretchingStiffness; }
     Float& bendingStiffness() { return _bendingStiffness; }
     Float& damping() { return _damping; }
@@ -67,9 +66,8 @@ private:
     LinearSystemSolver _linearSystemSolver;
 
     /* Simulation parameters */
-    Float _constraintStiffness{ 1000.0f };
-    Float _stretchingStiffness{ 100.0f };
-    Float _bendingStiffness{ 100.0f };
+    Float _stretchingStiffness{ 10000000.0f };
+    Float _bendingStiffness{ 10000000.0f };
     Float _damping{ 0.01f };
     Float _cflFactor { 1.0f };
 };

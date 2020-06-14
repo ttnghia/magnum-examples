@@ -169,15 +169,4 @@ void Cloth::setCloth(const Vector3& corner,
                   });
     }
 }
-
-void Cloth::setFixedVertex(UnsignedInt vidx) {
-    fixedVertices.insert(vidx);
-
-    auto& springList = vertexSprings[vidx];
-    springList.push_back({ Spring::SpringType::Constraint, vidx, 0 });
-    std::sort(springList.begin(), springList.end(),
-              [](const Spring& s1, const Spring& s2) {
-                  return s1.targetVertex < s2.targetVertex;
-              });
-}
 } }

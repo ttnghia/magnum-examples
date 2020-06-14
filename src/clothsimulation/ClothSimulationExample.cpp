@@ -88,7 +88,7 @@ protected:
     /* Cloth simulation */
     ClothSolver _clothSolver;
 
-    bool _pausedMotion = false;
+    bool _bPauseSimulation = false;
 };
 
 using namespace Math::Literals;
@@ -162,17 +162,35 @@ ClothSimulationExample::ClothSimulationExample(const Arguments& arguments) :
 
     /* Setup cloth solver */
     _clothSolver.getCloth().setCloth(ClothCorner, ClothSize, ClothResolution);
+    const Float minX = ClothCorner.x();
+    const Float maxX = ClothCorner.x() + ClothSize.x();
+    const Float maxY = ClothCorner.y() + ClothSize.y();
+
+    UnsignedInt minXIdx = 0, maxXIdx = 0;
+    for(size_t vidx = 0; vidx < _clothSolver.getCloth().getNumVertices(); ++vidx) {
+        const auto& pos = _clothSolver.getCloth().positions[vidx];
+        if(std::abs(pos.x() - minX) < Float(1e-8)
+           && std::abs(pos.y() - maxY) < Float(1e-8)) {
+            minXIdx = vidx;
+        }
+        if(std::abs(pos.x() - maxX) < Float(1e-8)
+           && std::abs(pos.y() - maxY) < Float(1e-8)) {
+            maxXIdx = vidx;
+        }
+    }
+    _clothSolver.getCloth().setFixedVertex(minXIdx);
+    _clothSolver.getCloth().setFixedVertex(maxXIdx);
 
     /* Setup cloth rendering */
     GL::Buffer                         buffer;
     Containers::ArrayView<const Float> data(
         reinterpret_cast<const Float*>(_clothSolver.getCloth().positions.data()),
-        _clothSolver.getCloth().getNumVertices() * 3 * sizeof(Float));
+        _clothSolver.getCloth().getNumVertices() * 3);
     buffer.setData(data, GL::BufferUsage::DynamicDraw);
 
     Containers::ArrayView<const UnsignedInt> indexData(
         reinterpret_cast<const UnsignedInt*>(_clothSolver.getCloth().faces.data()),
-        _clothSolver.getCloth().faces.size() * 3 * sizeof(UnsignedInt));
+        _clothSolver.getCloth().faces.size() * 3);
     std::pair<Containers::Array<char>, MeshIndexType> compressed =
         MeshTools::compressIndices(indexData);
     GL::Buffer indices;
@@ -201,7 +219,7 @@ ClothSimulationExample::ClothSimulationExample(const Arguments& arguments) :
         .setViewportSize(Vector2{ framebufferSize() })
         .setColor(0xffffff_rgbf)
         .setWireframeColor(0xffffff_rgbf)
-        .setWireframeWidth(2.0f)
+        .setWireframeWidth(1.0f)
         .setColorMapTransformation(0.0f, 1.0f / _clothSolver.getCloth().getNumVertices())
         .bindColorMapTexture(_colormap);
 
@@ -220,8 +238,28 @@ ClothSimulationExample::ClothSimulationExample(const Arguments& arguments) :
 void ClothSimulationExample::drawEvent() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
 
-    if(!_pausedMotion) {
-        //
+    if(!_bPauseSimulation) {
+        _clothSolver.advanceFrame(Float(1.0 / 60.0));
+
+        GL::Buffer                         buffer;
+        Containers::ArrayView<const Float> data(
+            reinterpret_cast<const Float*>(_clothSolver.getCloth().positions.data()),
+            _clothSolver.getCloth().getNumVertices() * 3);
+        buffer.setData(data, GL::BufferUsage::DynamicDraw);
+
+        Containers::ArrayView<const UnsignedInt> indexData(
+            reinterpret_cast<const UnsignedInt*>(_clothSolver.getCloth().faces.data()),
+            _clothSolver.getCloth().faces.size() * 3);
+        std::pair<Containers::Array<char>, MeshIndexType> compressed =
+            MeshTools::compressIndices(indexData);
+        GL::Buffer indices;
+        indices.setData(compressed.first);
+
+        _mesh = GL::Mesh{};
+        _mesh.setCount(_clothSolver.getCloth().faces.size() * 3)
+            .addVertexBuffer(std::move(buffer), 0,
+                             Shaders::Generic3D::Position{})
+            .setIndexBuffer(std::move(indices), 0, compressed.second);
     }
 
     _arcballCamera->update();
@@ -247,7 +285,7 @@ void ClothSimulationExample::keyPressEvent(KeyEvent& event) {
             event.setAccepted(true);
             break;
         case KeyEvent::Key::Space:
-            _pausedMotion ^= true;
+            _bPauseSimulation ^= true;
             event.setAccepted(true);
             break;
         default:;

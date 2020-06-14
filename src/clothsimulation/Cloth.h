@@ -40,7 +40,6 @@
 namespace Magnum { namespace Examples {
 struct Spring {
     enum class SpringType {
-        Constraint,
         Stretching,
         Bending
     };
@@ -64,7 +63,7 @@ struct Cloth {
     void resetState();
     void setCloth(const Vector3& corner, const Vector2& size, const Vector2ui& resolution,
                   UnsignedInt bendingSteps = 1);
-    void setFixedVertex(UnsignedInt vidx);
+    void setFixedVertex(UnsignedInt vidx) { fixedVertices.insert(vidx); }
 
     std::size_t getNumVertices() const { return positions.size(); }
     bool isFixedVertex(UnsignedInt vidx) const { return fixedVertices.find(vidx) != fixedVertices.end(); }
