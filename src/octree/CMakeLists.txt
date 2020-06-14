@@ -48,7 +48,7 @@ find_package(Magnum REQUIRED
 
 set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 
-
+include_directories(../fluidsimulation3d)
 add_executable(magnum-octree WIN32
     LooseOctree.h
     LooseOctree.cpp
