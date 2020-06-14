@@ -37,6 +37,7 @@
 #include <Magnum/Math/Color.h>
 #include <Magnum/MeshTools/Compile.h>
 #include <Magnum/Platform/Sdl2Application.h>
+#include <Magnum/Primitives/Cube.h>
 #include <Magnum/Primitives/Icosphere.h>
 #include <Magnum/SceneGraph/Camera.h>
 #include <Magnum/SceneGraph/Drawable.h>
@@ -48,6 +49,7 @@
 #include "LooseOctree.h"
 #include "../arcball/ArcBallCamera.h"
 #include "../motionblur/Icosphere.h"
+#include "../fluidsimulation3d/DrawableObjects/WireframeObjects.h"
 
 namespace Magnum { namespace Examples {
 class OctreeExample : public Platform::Application {
@@ -63,6 +65,9 @@ protected:
     void mouseMoveEvent(MouseMoveEvent& event) override;
     void mouseScrollEvent(MouseScrollEvent& event) override;
 
+    void updatePointsAndOctree();
+    void updateTreeNodeBoundingBoxes();
+
     /* Scene and drawable group must be constructed before camera and other
        drawble objects */
     Containers::Pointer<Scene3D>                     _scene;
@@ -76,12 +81,14 @@ protected:
     static constexpr UnsignedInt MaxPoints { 8 };
     Vector3   _spheresVel[MaxPoints];
     Object3D* _spheres[MaxPoints];
-    bool      _pausedMotion = false;
+    bool      _pausedMotion = true;
 
     /* Store positions in a vector to construct octree */
     std::vector<Vector3> _spheresPos = std::vector<Vector3>(MaxPoints);
 
+    /* Octree and boundary boxes */
     Containers::Pointer<LooseOctree> _octree;
+    std::vector<WireframeBox*>       _treeNodeBoundingBoxes;
 };
 
 using namespace Math::Literals;
@@ -130,14 +137,16 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         _spheresPos[i] = pos;
         _spheresVel[i] = pos;
 
-        new Icosphere(_mesh.get(), _shader.get(), Color3(tmp), _spheres[i], _drawables.get());
+        (new Icosphere(_mesh.get(), _shader.get(), 0x9d03fc_rgbf, _spheres[i], _drawables.get()))
+            ->scale(Vector3{ 0.5f });
     }
 
     /* Setup octree */
     {
-        _octree.emplace(Vector3{ 0 }, 1.1f, 0.1f);
+        _octree.emplace(Vector3{ 0 }, 1.0f, 0.1f);
         _octree->setPoints(_spheresPos);
         _octree->build();
+        updateTreeNodeBoundingBoxes();
     }
 
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
@@ -152,21 +161,8 @@ void OctreeExample::drawEvent() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
 
     if(!_pausedMotion) {
-        static constexpr Float dt{ 1.0f / 300.0f };
-
-        for(std::size_t i = 0; i < MaxPoints; ++i) {
-            Vector3 pos = _spheresPos[i] + _spheresVel[i] * dt;
-            for(std::size_t j = 0; j < 3; ++j) {
-                if(pos[j] < -1.0f || pos[j] > 1.0f) {
-                    _spheresVel[i][j] = -_spheresVel[i][j];
-                }
-                pos[j] = Math::clamp(pos[j], -1.0f, 1.0f);
-            }
-            _spheresPos[i] = pos;
-            _spheres[i]->setTransformation(Matrix4::translation(pos));
-        }
-
-        _octree->update();
+        updatePointsAndOctree();
+        updateTreeNodeBoundingBoxes();
     }
 
     _arcballCamera->update();
@@ -175,6 +171,55 @@ void OctreeExample::drawEvent() {
     swapBuffers();
     /* Run next frame immediately */
     redraw();
+}
+
+void OctreeExample::updatePointsAndOctree() {
+    static constexpr Float dt{ 1.0f / 300.0f };
+
+    for(std::size_t i = 0; i < MaxPoints; ++i) {
+        Vector3 pos = _spheresPos[i] + _spheresVel[i] * dt;
+        for(std::size_t j = 0; j < 3; ++j) {
+            if(pos[j] < -1.0f || pos[j] > 1.0f) {
+                _spheresVel[i][j] = -_spheresVel[i][j];
+            }
+            pos[j] = Math::clamp(pos[j], -1.0f, 1.0f);
+        }
+        _spheresPos[i] = pos;
+        _spheres[i]->setTransformation(Matrix4::translation(pos));
+    }
+
+    _octree->updatePoints(_spheresPos);
+    _octree->update();
+}
+
+void OctreeExample::updateTreeNodeBoundingBoxes() {
+    const auto& activeTreeNodeBlocks = _octree->getActiveTreeNodeBlocks();
+
+    std::size_t boxIdx{ 0 };
+    for(OctreeNodeBlock* const pNodeBlock : activeTreeNodeBlocks) {
+        for(std::size_t childIdx = 0; childIdx < 8; ++childIdx) {
+            OctreeNode* const pNode = &pNodeBlock->_nodes[childIdx];
+            if(!pNode->isLeaf() || pNode->getPointCount() > 0) { /* non-empty node */
+                if(boxIdx == _treeNodeBoundingBoxes.size()) {
+                    auto drawableBox = new WireframeBox(_scene.get(), _drawables.get());
+                    drawableBox->setColor(Color3(1, 1, 0));
+                    _treeNodeBoundingBoxes.emplace_back(drawableBox);
+                }
+                _treeNodeBoundingBoxes[boxIdx++]->setTransformation(
+                    Matrix4::translation(pNode->getCenter()) *
+                    Matrix4::scaling(Vector3{ pNode->getHalfWidth() })
+                    );
+            }
+        }
+    }
+
+    /* For the remaining boxes, hide them away */
+    while(boxIdx < _treeNodeBoundingBoxes.size()) {
+        _treeNodeBoundingBoxes[boxIdx++]->setTransformation(
+            Matrix4::translation(Vector3{ 100 }) *
+            Matrix4::scaling(Vector3{ 0 })
+            );
+    }
 }
 
 void OctreeExample::viewportEvent(ViewportEvent& event) {
