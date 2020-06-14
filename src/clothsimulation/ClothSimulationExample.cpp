@@ -167,7 +167,7 @@ ClothSimulationExample::ClothSimulationExample(const Arguments& arguments) :
     const Float maxY = ClothCorner.y() + ClothSize.y();
 
     UnsignedInt minXIdx = 0, maxXIdx = 0;
-    for(size_t vidx = 0; vidx < _clothSolver.getCloth().getNumVertices(); ++vidx) {
+    for(std::size_t vidx = 0; vidx < _clothSolver.getCloth().getNumVertices(); ++vidx) {
         const auto& pos = _clothSolver.getCloth().positions[vidx];
         if(std::abs(pos.x() - minX) < Float(1e-8)
            && std::abs(pos.y() - maxY) < Float(1e-8)) {
