@@ -30,6 +30,7 @@ public:
     virtual Mat computeStressTensor(const Mat& F) = 0;
     virtual Real_t computeEnergy(const Mat& /* F */, const Real_t /* w */) {
         //Fatal() << "Not implemented!"; return 0;
+        return 0;
     }
 
     Real_t _mu     = 100;

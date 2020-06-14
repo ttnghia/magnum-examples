@@ -9,10 +9,11 @@
 #include <fstream>
 
 #include <Common/Setup.h>
-#include "Simulator.h"
+#include "FEMSolver/FEMSolver.h"
 
+namespace Magnum { namespace Examples {
 /****************************************************************************************************/
-static Simulator<3> sim;
+static FEMSolver sim;
 
 #define WINDOW_WIDTH          1920
 #define WINDOW_HEIGHT         1080
@@ -49,7 +50,7 @@ void Update() {
     static int           steps    = 0;
     if(forward_sim) {
         for(int i = 0; i < substeps; ++i) {
-            sim.step();
+            //            sim.step();
         }
         //        std::cout << "steps: " << steps++ << std::endl;
     }
@@ -144,7 +145,7 @@ void GlutKeyboard(unsigned char key, int x, int y) {
             break;
         case 'r':
         case 'R':
-            sim.reset();
+            //            sim.reset();
             //Debug() << "Reset animation";
             break;
     }
@@ -172,3 +173,4 @@ void GlutKeyboard(unsigned char key, int x, int y) {
 
 //    return 0;
 //}
+} }

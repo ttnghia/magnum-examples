@@ -34,55 +34,66 @@
 
 #include "FEMSolver/SolverData.h"
 
+#include <Attachment.h>
+#include <Element.h>
+
+#include <memory>
+
+template<int DIM, class Real_t> class Animation;
+template<int DIM, class Real_t, class IntType> class CollisionObject;
+
 namespace Magnum { namespace Examples {
 /* 2D Affine Particle-in-Cell fluid solver */
 class FEMSolver {
 public:
-    explicit FEMSolver(const Vector2& origin, Float cellSize, Int Ni, Int Nj, SceneObjects* sceneObjs);
-
-    /* Manipulation */
-    void reset() {
-        _particles.reset();
-        _particles.addParticles(_particles.positionsT0, 0);
-    }
-
-    void emitParticles() { generateParticles(_objects->emitter, 10); }
-
-    void addRepulsiveVelocity(const Vector2& p0, const Vector2& p1, Float dt, Float radius, Float magnitude);
+    explicit FEMSolver();
 
     void advanceFrame(Float frameDuration);
 
-    /* Properties */
-    UnsignedInt numParticles() const { return _particles.size(); }
-
-    Float particleRadius() const { return _particles.particleRadius; }
-
-    const std::vector<Vector2>& particlePositions() const {
-        return _particles.positions;
-    }
-
 private:
-    /* Initialization */
-    void initBoundary();
-    void generateParticles(const SDFObject& sdfObj, Float initialVelocity_y);
-
     /* Simulation */
     Float timestepCFL() const;
     void  moveParticles(Float dt);
-    void  collectParticlesToCells();
-    void  particleVelocity2Grid();
-    void  extrapolate(Array2X<Float>& grid, Array2X<Float>& tmp_grid, Array2X<char>& valid, Array2X<char>& old_valid) const;
-    void  addGravity(Float dt);
-    void  computeFluidSDF();
-    void  solvePressures(Float dt);
-    void  constrainVelocity();
-    void  relaxParticlePositions(Float dt);
-    void  gridVelocity2Particle();
 
-    Containers::Pointer<SceneObjects> _objects;
-    ParticleData       _particles;
-    GridData           _grid;
-    LinearSystemSolver _pressureSolver;
+    //    ParticleData _particles;
+
+    u64 numVerts() const { return _vertPos.size(); }
+    u64 numElements() const { return _elements.size(); }
+
+    COMMON_TYPE_ALIASING(3, Float)
+    bool performGradientDescentOneIteration(StdVT<Vec>& x);
+    void evaluateGradient(const StdVT<Vec>& x, StdVT<Vec>& _gradient);
+    real evaluateEnergy(const StdVT<Vec>& x);
+    real lineSearch(const StdVT<Vec>& x, const StdVT<Vec>& gradient_dir, const StdVT<Vec>& descent_dir);
+
+    void step();
+    void draw();
+    void reset() { _time = 0; _frame = 0; }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    StdVT<Element<3>>           _elements;
+    StdVT<Vec>                  _vertPos;
+    StdVT<u32>                  _fixedVerts;
+    StdVT<Attachment<3, Float>> _attachmentConstr;
+    StdVT<Vec>                  _gradient;
+    StdVT<Vec>                  _externalForces;
+    StdVT<Vec>                  _vertPredictedPos;
+    StdVT<Vec>                  _oldVertPos;
+    StdVT<Vec>                  _vertVel;
+
+    /* Variable for line search */
+    inline static constexpr real _ls_alpha = real(1.0);
+    inline static constexpr real _ls_beta  = real(0.3);
+
+    inline static constexpr real _mass    = real(1.0);
+    inline static constexpr real _massInv = real(1.0);
+
+    /* Frame counter */
+    double _time { 0 };
+    u64    _frame { 0 };
+
+    std::shared_ptr<Animation<3, real>>                   _animation;
+    StdVT<std::shared_ptr<CollisionObject<3, real, u32>>> _CollisionObjs;
 };
 } }
 

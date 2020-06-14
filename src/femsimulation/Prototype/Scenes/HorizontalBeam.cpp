@@ -69,8 +69,8 @@ void HorizontalBeam<DIM, Real_t, IntType>::setupScene(StdVT<Vec>&          vertP
         const Real_t mu = g_bAllowSceneToChangeMaterialStiffnesses ? real(1500) : g_mu;
         this->setMaterialParameters(elements, mu, g_lambda);
 
-        Debug() << "Initialize scene HorizontalBeam,"
-                << nRows - 1 << "layers of element tall, fixed on the right side";
+        // Debug() << "Initialize scene HorizontalBeam,"
+        //         << nRows - 1 << "layers of element tall, fixed on the right side";
 #endif
     } /* End 2D scene */
     ////////////////////////////////////////////////////////////////////////////////
@@ -78,7 +78,7 @@ void HorizontalBeam<DIM, Real_t, IntType>::setupScene(StdVT<Vec>&          vertP
     ////////////////////////////////////////////////////////////////////////////////
     else { /* 3D scene */
         static constexpr u32 nCols = 10;
-        Debug() << "Initialize scene HorizontalBeam, 2 layers of elements tall, fixed on the left side";
+        //        Debug() << "Initialize scene HorizontalBeam, 2 layers of elements tall, fixed on the left side";
 
         StdVT<Real_t> tmpPos((nCols + 1) * 3 * 9);
         for(u32 i = 0; i < 3; i++) {

@@ -39,7 +39,7 @@ const char* g_sceneName = "beam";
 /* Material params
  * Stiffnesses can be override during scene initialization
  */
-const char* g_materialType = "Corot";
+const char* g_materialType = "neo";
 //const char* g_materialType = "stvk";
 const bool g_bAllowSceneToChangeMaterialStiffnesses = true;
 

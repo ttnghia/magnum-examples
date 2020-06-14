@@ -22,8 +22,6 @@
 /* Include all material headers */
 #include <Materials/MaterialFactory.h>
 
-#include <Materials/CorotationalElasticity.h>
-#include <Materials/LinearElasticity.h>
 #include <Materials/NeoHookean.h>
 #include <Materials/StableNeoHookean.h>
 #include <Materials/StVK.h>
@@ -33,24 +31,15 @@ template<int DIM, class Real_t>
 std::shared_ptr<Material<DIM, Real_t>> MaterialFactory<DIM, Real_t>::create() {
     String materialName(g_materialType);
     std::transform(materialName.begin(), materialName.end(), materialName.begin(), std::tolower);
-    if(materialName.find("corot") != std::string::npos) {
-        return std::dynamic_pointer_cast<Material<DIM, Real_t>>(
-            std::make_shared<CorotationalElasticity<DIM, Real_t>>());
-    } else if(materialName.find("linear") != std::string::npos) {
-        return std::dynamic_pointer_cast<Material<DIM, Real_t>>(
-            std::make_shared<LinearElasticity<DIM, Real_t>>());
-    } else if(materialName.find("stable") != std::string::npos) {
+    if(materialName.find("stable") != std::string::npos) {
         return std::dynamic_pointer_cast<Material<DIM, Real_t>>(
             std::make_shared<StableNeoHookean<DIM, Real_t>>());
     } else if(materialName.find("neo") != std::string::npos) {
         return std::dynamic_pointer_cast<Material<DIM, Real_t>>(
             std::make_shared<NeoHookean<DIM, Real_t>>());
-    } else if(materialName.find("stvk") != std::string::npos) {
-        return std::dynamic_pointer_cast<Material<DIM, Real_t>>(
-            std::make_shared<StVK<DIM, Real_t>>());
     }
 
-    Fatal() << "Invalid material type";
+    //    Fatal() << "Invalid material type";
     return nullptr;
 }
 

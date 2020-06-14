@@ -23,8 +23,6 @@
 #include <Scenes/SceneFactory.h>
 
 #include <Scenes/HorizontalBeam.h>
-#include <Scenes/OneElement.h>
-#include <Scenes/TwoElements.h>
 
 /****************************************************************************************************/
 template<int DIM, class Real_t, class IntType>
@@ -34,15 +32,8 @@ std::shared_ptr<Scene<DIM, Real_t, IntType>> SceneFactory<DIM, Real_t, IntType>:
     if(sceneName.find("beam") != std::string::npos) {
         return std::dynamic_pointer_cast<Scene<DIM, Real_t, IntType>>(
             std::make_shared<HorizontalBeam<DIM, Real_t, IntType>>());
-    } else if(sceneName.find("one") != std::string::npos) {
-        return std::dynamic_pointer_cast<Scene<DIM, Real_t, IntType>>(
-            std::make_shared<OneElement<DIM, Real_t, IntType>>());
-    } else if(sceneName.find("two") != std::string::npos) {
-        return std::dynamic_pointer_cast<Scene<DIM, Real_t, IntType>>(
-            std::make_shared<TwoElements<DIM, Real_t, IntType>>());
     }
 
-    Fatal() << "Invalid scene name";
     return nullptr;
 }
 

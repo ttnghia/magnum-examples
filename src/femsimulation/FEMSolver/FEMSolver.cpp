@@ -4,7 +4,7 @@
     Original authors — credit is appreciated but not required:
 
         2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020 —
-            Vladimír Vondruš <mosra@centrum.cz>
+            Vla3ír Vondruš <mosra@centrum.cz>
         2020 — Nghia Truong <nghiatruong.vn@gmail.com>
 
     This is free and unencumbered software released into the public domain.
@@ -32,107 +32,17 @@
 
 #include <random>
 
+#include <SimParams.h>
+
+//#include <InverseSolver/InverseElements.h>
+
+#include <Common/ParallelHelpers/TaskScheduler.h>
+#include <Common/ParallelHelpers/Scheduler.h>
+#include <Common/ParallelHelpers/ParallelSTL.h>
+
+#include <Scenes/SceneFactory.h>
+
 namespace Magnum { namespace Examples {
-FEMSolver::FEMSolver(const Vector2& origin, Float cellSize, Int nI, Int nJ, SceneObjects* sceneObjs) :
-    _objects{sceneObjs},
-    _particles{cellSize},
-    _grid{origin, cellSize, nI, nJ} {
-    if(nI < 1 || nJ < 1) {
-        Fatal{} << "Invalid grid resolution";
-    }
-    if(!sceneObjs) {
-        Fatal{} << "Invalid scene object";
-    }
-
-    /* Initialize data */
-    initBoundary();
-    generateParticles(_objects->emitterT0, 0);
-}
-
-/* This function should be called again every time the boundary changes */
-void FEMSolver::initBoundary() {
-    _grid.boundarySDF.loop2D([&](std::size_t i, std::size_t j) {
-                                 _grid.boundarySDF(i, j) = _objects->boundary.signedDistance(_grid.getWorldPos({ Float(i), Float(j) }));
-                             });
-
-    /* Initialize the fluid cell weights from boundary signed distance field */
-    _grid.uWeights.loop2D([&](std::size_t i, std::size_t j) {
-                              _grid.uWeights(i, j) = Float(1) - fractionInside(_grid.boundarySDF(i, j + 1), _grid.boundarySDF(i, j));
-                              _grid.uWeights(i, j) = Math::clamp(_grid.uWeights(i, j), Float(0), Float(1));
-                          });
-    _grid.vWeights.loop2D([&](std::size_t i, std::size_t j) {
-                              _grid.vWeights(i, j) = Float(1) - fractionInside(_grid.boundarySDF(i + 1, j), _grid.boundarySDF(i, j));
-                              _grid.vWeights(i, j) = Math::clamp(_grid.vWeights(i, j), Float(0), Float(1));
-                          });
-}
-
-void FEMSolver::generateParticles(const SDFObject& sdfObj, Float initialVelocity_y) {
-    using Distribution = std::uniform_real_distribution<Float>;
-    const Float  rndScale = _particles.particleRadius * 0.5f;
-    std::mt19937 gen(std::random_device{} ());
-    Distribution distr(-rndScale, rndScale);
-
-    /* Generate new particles */
-    std::vector<Vector2> newParticles;
-    _grid.fluidSDF.loop2D(
-        [&](std::size_t i, std::size_t j) {
-            const Vector2 cellCenter = _grid.getWorldPos({ i + 0.5f, j + 0.5f });
-            for(Int k = 0; k < 2; ++k) {
-                const Vector2 ppos = cellCenter + Vector2(distr(gen), distr(gen));
-                if(sdfObj.signedDistance(ppos) < 0) {
-                    newParticles.push_back(ppos);
-                }
-            }
-        });
-
-    /* Insert into the system */
-    _particles.addParticles(newParticles, initialVelocity_y);
-}
-
-void FEMSolver::addRepulsiveVelocity(const Vector2& p0, const Vector2& p1, Float dt, Float radius, Float magnitude) {
-    Vector2     movingVel  = p1 - p0;
-    const Float movingDist = movingVel.length();
-    if(movingDist < _particles.particleRadius) {
-        return;
-    }
-
-    movingVel /= dt;
-
-    Vector2 from, to;
-    for(std::size_t i = 0; i < 2; ++i) {
-        from[i] = Math::min(p0[i], p1[i]);
-        to[i]   = Math::max(p0[i], p1[i]);
-    }
-
-    const Int      span       = Int(radius / _grid.cellSize);
-    const Vector2i fromCell   = _grid.getCellIdx(from) - Vector2i(span);
-    const Vector2i toCell     = _grid.getCellIdx(to) + Vector2i(span);
-    const Vector2  p01        = p1 - p0;
-    const Float    p01DistSqr = p01.dot();
-
-    const auto distToSegment = [&](const Vector2& pos) -> Float {
-                                   const Float   t   = Math::max(0.0f, Math::min(1.0f, Math::dot(pos - p0, p01) / p01DistSqr));
-                                   const Vector2 prj = p0 + t * p01;
-                                   return (pos - prj).length();
-                               };
-
-    for(Int j = fromCell.y(); j <= toCell.y(); ++j) {
-        for(Int i = fromCell.x(); i <= toCell.x(); ++i) {
-            if(!_grid.isValidCellIdx(i, j)) { continue; }
-
-            const std::vector<UnsignedInt>& particleIdxs = _grid.cellParticles(i, j);
-            for(UnsignedInt p: particleIdxs) {
-                const Float dist = distToSegment(_particles.positions[p]);
-                const Float t    = dist / radius;
-                if(t < 1.0f) {
-                    const Float w = Math::lerp(0.0f, magnitude, t);
-                    _particles.velocities[p] += movingVel * w;
-                }
-            }
-        }
-    }
-}
-
 void FEMSolver::advanceFrame(Float frameDuration) {
     Float frameTime = 0;
 
@@ -148,358 +58,281 @@ void FEMSolver::advanceFrame(Float frameDuration) {
 
         /* Advect particles */
         moveParticles(substep);
-
-        /* Particles => grid */
-        collectParticlesToCells();
-        particleVelocity2Grid();
-
-        /* Update grid velocity */
-        extrapolate(_grid.u, _grid.uTmp, _grid.uValid, _grid.uOldValid);
-        extrapolate(_grid.v, _grid.vTmp, _grid.vValid, _grid.vOldValid);
-        addGravity(substep);
-        computeFluidSDF();
-        solvePressures(substep);
-
-        /* Enforce boundary condition */
-        constrainVelocity();
-
-        /* Grid => particles */
-        relaxParticlePositions(substep);
-        gridVelocity2Particle();
     }
 }
 
 Float FEMSolver::timestepCFL() const {
     Float maxVel = 0;
-    _grid.u.loop1D([&](std::size_t i) {
-                       maxVel = Math::max(maxVel, Math::abs(_grid.u.data()[i]));
-                   });
-    _grid.v.loop1D([&](std::size_t i) {
-                       maxVel = Math::max(maxVel, Math::abs(_grid.v.data()[i]));
-                   });
-    return maxVel > 0 ? _grid.cellSize / maxVel * 3.0f : 1.0f;
+    //    _grid.u.loop1D([&](std::size_t i) {
+    //                       maxVel = Math::max(maxVel, Math::abs(_grid.u.data()[i]));
+    //                   });
+
+    return 0;
 }
 
 void FEMSolver::moveParticles(Float dt) {
-    _particles.loopAll([&](UnsignedInt p) {
-                           const Vector2 newPos    = _particles.positions[p] + _particles.velocities[p] * dt;
-                           _particles.positions[p] = _grid.constrainBoundary(newPos);
-                       });
+    // _particles.loopAll([&](UnsignedInt p) {
+    //                        const Vector2 newPos    = _particles.positions[p] + _particles.velocities[p] * dt;
+    //                        _particles.positions[p] = _grid.constrainBoundary(newPos);
+    //                    });
 }
 
-void FEMSolver::collectParticlesToCells() {
-    _grid.cellParticles.loop1D([&](std::size_t i) {
-                                   _grid.cellParticles.data()[i].resize(0);
-                               });
-    _particles.loopAll([&](UnsignedInt p) {
-                           const Vector2 ppos       = _particles.positions[p];
-                           const Vector2i gridCoord = _grid.getValidCellIdx(ppos);
-                           _grid.cellParticles(gridCoord).push_back(p);
-                       });
-}
+/****************************************************************************************************/
 
-void FEMSolver::particleVelocity2Grid() {
-    _grid.u.loop2D([&](std::size_t i, std::size_t j) {
-                       Float sumW = 0.0f;
-                       Float sumU = 0.0f;
-                       const Vector2 nodePos = _grid.getWorldPos({ Float(i), j + 0.5f });
-                       _grid.loopNeigborParticles(static_cast<Int>(i), static_cast<Int>(j), -1, 0, -1, 1, [&](UnsignedInt p) {
-                                                      const Vector2 xpg = nodePos - _particles.positions[p];
-                                                      const auto w      = linearKernel(xpg, _grid.invCellSize);
-                                                      if(w > 0) {
-                                                          sumW += w;
-                                                          sumU += w * (_particles.velocities[p].x() + Math::dot(_particles.affineMat[p][0], xpg));
-                                                      }
-                                                  });
-                       _grid.u(i, j)      = sumW > 0 ? sumU / sumW : 0.0f;
-                       _grid.uValid(i, j) = sumW > 0 ? 1 : 0;
-                   });
+FEMSolver::FEMSolver() {
+    //TaskScheduler::setNumThreads(g_NumThreads);
 
-    _grid.v.loop2D([&](std::size_t i, std::size_t j) {
-                       Float sumW = 0.0;
-                       Float sumV = 0.0;
-                       const Vector2 nodePos = _grid.getWorldPos({ i + 0.5f, Float(j) });
-                       _grid.loopNeigborParticles(static_cast<Int>(i), static_cast<Int>(j), -1, 1, -1, 0, [&](UnsignedInt p) {
-                                                      const Vector2 xpg = nodePos - _particles.positions[p];
-                                                      const auto w      = linearKernel(xpg, _grid.invCellSize);
-                                                      if(w > 0) {
-                                                          sumW += w;
-                                                          sumV += w * (_particles.velocities[p].y() + Math::dot(_particles.affineMat[p][1], xpg));
-                                                      }
-                                                  });
-                       _grid.v(i, j)      = sumW > 0 ? sumV / sumW : 0.0f;
-                       _grid.vValid(i, j) = sumW > 0 ? 1 : 0;
-                   });
-}
+    /* Setup scene  */
+    const auto scene = SceneFactory<3, Float, u32>::create();
+    scene->setupScene(_vertPos, _fixedVerts, _elements);
 
-void FEMSolver::extrapolate(Array2X<Float>& grid, Array2X<Float>& tmp_grid, Array2X<char>& valid, Array2X<char>& old_valid) const {
-    tmp_grid  = grid;
-    old_valid = valid;
+    ////////////////////////////////////////////////////////////////////////////////
+    /* Setup animation and collision objects */
+    //    _animation = AnimationFactory<3, Float>::create();
+    //    auto collisionObj = CollisionObjectFactory<3, Float, u32>::create();
+    //    if(collisionObj != nullptr) {
+    //        _CollisionObjs.emplace_back(std::move(collisionObj));
+    //    }
 
-    Array2X<Float>* pgrids[]  = { &grid, &tmp_grid };
-    Array2X<char>*  pvalids[] = { &valid, &old_valid };
+    ////////////////////////////////////////////////////////////////////////////////
+    /* Run inverse simulation */
+    //    if(g_bInverseSimulation) {
+    //        StdVT<std::pair<u32, Vec>> collisionInfo;
+    //        for(auto& colObj : _CollisionObjs) {
+    //            colObj->findCollision(_vertPos, collisionInfo);
+    //        }
+    //        InverseSolver::inverseElements<3, Float, u32>(
+    //            _vertPos, _fixedVerts,
+    //            collisionInfo,
+    //            _elements, g_gravity,
+    //            g_ForceRegularization,
+    //            g_TorqueRegularization,
+    //            g_bCrashIfFailed,
+    //            g_bPrintDebugDetails
+    //            );
+    //    }
 
-    for(int layers = 0; layers < 1; ++layers) {
-        auto& gridSrc = *pgrids[layers & 1];
-        auto& gridTgt = *pgrids[!(layers & 1)];
-
-        auto& validSrc = *pvalids[layers & 1];
-        auto& validTgt = *pvalids[!(layers & 1)];
-
-        grid.loop2D([&](std::size_t i, std::size_t j) {
-                        if(i == 0 || i == grid.sizeX() - 1 ||
-                           j == 0 || j == grid.sizeY() - 1) { return; }
-
-                        Float sum = 0;
-                        Int count = 0;
-
-                        if(!validSrc(i, j)) {
-                            const std::size_t rows[] = { i + 1, i - 1, i, i };
-                            const std::size_t cols[] = { j, j, j + 1, j - 1 };
-
-                            for(std::size_t cell = 0; cell < 4; ++cell) {
-                                if(validSrc(rows[cell], cols[cell])) {
-                                    sum += gridSrc(rows[cell], cols[cell]);
-                                    ++count;
-                                }
-                            }
-
-                            if(count > 0) {
-                                gridTgt(i, j)  = sum / Float(count);
-                                validTgt(i, j) = 1;
-                            }
-                        }
-                    });
-
-        gridSrc.swapContent(gridTgt);
-        validSrc.swapContent(validTgt);
+    ////////////////////////////////////////////////////////////////////////////////
+    /* Setup variables for integration */
+    for(const auto fi : _fixedVerts) {
+        _attachmentConstr.push_back(Attachment<3, Float>(fi, _vertPos));
     }
+
+    _gradient.resize(numVerts());
+    _externalForces.assign(numVerts(), Vec::Zero());
+    for(u64 v = 0; v < numVerts(); ++v) {
+        _externalForces[v][1] = -g_gravity;
+    }
+    _vertVel.assign(numVerts(), Vec::Zero());
+    _vertPredictedPos.assign(numVerts(), Vec::Zero());
 }
 
-void FEMSolver::addGravity(Float dt) {
-    _grid.v.loop2D([&](std::size_t i, std::size_t j) {
-                       if(_grid.vValid(i, j)) {
-                           _grid.v(i, j) -= 9.81f * dt; /* gravity */
-                       }
-                   });
+/****************************************************************************************************/
+
+void FEMSolver::draw() {
+    for(auto& e : _elements) {
+        e.draw(_vertPos);
+    }
+
+    for(auto& colObj :_CollisionObjs) {
+        //colObj->draw();
+    }
+
+    /* Draw fixed vertices */
+    //    glPointSize(10);
+    //    glColor3f(1, 0, 0);
+    //    glBegin(GL_POINTS);
+    //    for(auto vi : _fixedVerts) {
+    //        if constexpr (3 == 2) {
+    //            if constexpr (sizeof(Float) == sizeof(float)) {
+    //                glVertex2fv(reinterpret_cast<Float*>(&_vertPos[vi]));
+    //            } else {
+    //                glVertex2dv(reinterpret_cast<Float*>(&_vertPos[vi]));
+    //            }
+    //        } else {
+    //            if constexpr (sizeof(Float) == sizeof(float)) {
+    //                glVertex3fv(reinterpret_cast<Float*>(&_vertPos[vi]));
+    //            } else {
+    //                glVertex3dv(reinterpret_cast<Float*>(&_vertPos[vi]));
+    //            }
+    //        }
+    //    }
+    //    glEnd();
 }
 
-void FEMSolver::computeFluidSDF() {
-    _grid.fluidSDF.assign(3 * _grid.cellSize);
+/****************************************************************************************************/
 
-    _particles.loopAll([&](UnsignedInt p) {
-                           const Vector2 ppos     = _particles.positions[p];
-                           const Vector2i gridPos = Vector2i(_grid.getGridPos(ppos) - Vector2(0.5));
+void FEMSolver::step() {
+    /* Update system time and perform animation */
+    _time += static_cast<double>(g_dt);
+    _frame = static_cast<u64>(std::floor(_time * g_FPS));
+    //_animation->animate(_time, _vertPos, _attachmentConstr);
 
-                           for(Int j = gridPos.y() - 2; j <= gridPos.y() + 2; ++j) {
-                               for(Int i = gridPos.x() - 2; i <= gridPos.x() + 2; ++i) {
-                                   if(!_grid.isValidCellIdx(i, j)) { continue; }
+    ////////////////////////////////////////////////////////////////////////////////
+    /* Resolve collision */
+    //    for(auto& colObj: _CollisionObjs) {
+    // colObj->updateState(_time);
+    // colObj->resolveCollision(_vertPos, _vertVel, g_dt);
+    //    }
+    ////////////////////////////////////////////////////////////////////////////////
+    /* Time integration */
+    if(g_bIntegrationWithLineSearch) {
+        const auto hSqr_mInv_over_2 = g_dt * g_dt * _massInv * Float(0.5);
+        _oldVertPos = _vertPos;
+        Scheduler::parallel_for(
+            numVerts(), [&](u64 vIdx) {
+                _vertPredictedPos[vIdx] = _vertPos[vIdx] + _vertVel[vIdx] * g_dt +
+                                          hSqr_mInv_over_2 * _externalForces[vIdx];
+            });
+        _vertPos = _vertPredictedPos;
+        performGradientDescentOneIteration(_vertPos);
 
-                                   const Vector2 cellCenter = _grid.getWorldPos({ i + 0.5f, j + 0.5f });
-                                   const Float sdfVal       = (cellCenter - ppos).length() - _particles.particleRadius;
-                                   if(_grid.fluidSDF(i, j) > sdfVal) {
-                                       _grid.fluidSDF(i, j) = sdfVal;
-                                   }
-                               }
-                           }
-                       });
-
-    _grid.fluidSDF.loop2D([&](std::size_t i, std::size_t j) {
-                              const Vector2 cellCenter = _grid.getWorldPos({ i + 0.5f, j + 0.5f });
-                              const Float sdfVal       = _objects->boundary.signedDistance(cellCenter);
-                              if(_grid.fluidSDF(i, j) > sdfVal) {
-                                  _grid.fluidSDF(i, j) = sdfVal;
-                              }
-                          });
-}
-
-void FEMSolver::solvePressures(Float dt) {
-    const std::size_t nI       = std::size_t(_grid.nI);
-    const std::size_t nJ       = std::size_t(_grid.nJ);
-    const std::size_t numCells = nI * nJ;
-
-    _pressureSolver.resize(numCells);
-    _pressureSolver.clear();
-
-    for(std::size_t j = 1; j < nJ - 1; ++j) {
-        for(std::size_t i = 1; i < nI - 1; ++i) {
-            const std::size_t row       = i + nI * j;
-            Double            rhsVal    = 0.0;
-            const Float       centerSDF = _grid.fluidSDF(i, j);
-
-            if(centerSDF >= 0) {
-                _pressureSolver.rhs[row] = rhsVal;
-                continue;
-            }
-
-            const Float       cellsWeights[] = {
-                _grid.uWeights(i + 1, j),
-                _grid.uWeights(i, j),
-                _grid.vWeights(i, j + 1),
-                _grid.vWeights(i, j)
-            };
-            const Float       cellsSDF[] = {
-                _grid.fluidSDF(i + 1, j),
-                _grid.fluidSDF(i - 1, j),
-                _grid.fluidSDF(i, j + 1),
-                _grid.fluidSDF(i, j - 1)
-            };
-            const Float       cellsVel[] = {
-                -_grid.u(i + 1, j), /* minus velocity */
-                _grid.u(i, j),
-                -_grid.v(i, j + 1), /* minus velocity */
-                _grid.v(i, j)
-            };
-            const std::size_t cols[] = {
-                row + 1,
-                row - 1,
-                row + nI,
-                row - nI
-            };
-
-            /* Fill-in matrix */
-            for(std::size_t cell = 0; cell < 4; ++cell) {
-                rhsVal += Double(cellsWeights[cell] * cellsVel[cell]);
-                const Float term = cellsWeights[cell] * dt;
-                if(cellsSDF[cell] < 0.0f) {
-                    _pressureSolver.matrix.addToElement(row,  row,       term);
-                    _pressureSolver.matrix.addToElement(row, cols[cell], -term);
-                } else {
-                    const Float theta = Math::max(0.01f, fractionInside(centerSDF, cellsSDF[cell]));
-                    _pressureSolver.matrix.addToElement(row, row, term / theta);
-                }
-            }
-
-            /* Write rhs */
-            _pressureSolver.rhs[row] = rhsVal;
+        /* Reset fixed positions */
+        for(auto& fixedConstr : _attachmentConstr) {
+            _vertPos[fixedConstr.getVertexIdx()] = fixedConstr.getFixedPosition();
         }
+
+        Scheduler::parallel_for(
+            numVerts(), [&](u64 vIdx) {
+                Vec vel = 2 * (_vertPos[vIdx] - _oldVertPos[vIdx]) / g_dt -
+                          _vertVel[vIdx];
+                _vertVel[vIdx] = vel * (1 - g_damping);
+            });
+    } else { /* Explicit integration */
+        for(auto& grad: _gradient) {
+            grad.setZero();
+        }
+
+        /* Not thread-safe */
+        for(u64 ei = 0; ei < numElements(); ++ei) {
+            _elements[ei].evaluateGradient(_vertPos, _gradient);
+        }
+
+        Scheduler::parallel_for(numVerts(), [&](u64 vIdx) { _gradient[vIdx].y() += g_gravity; });
+
+        for(const auto vi:_fixedVerts) {
+            _gradient[vi].setZero();
+        }
+
+        Scheduler::parallel_for(numVerts(), [&](u64 vIdx) { _vertPos[vIdx] -= _gradient[vIdx] * g_dt; });
+    }
+}
+
+/****************************************************************************************************/
+
+bool FEMSolver::performGradientDescentOneIteration(StdVT<Vec>& x) {
+    static constexpr Float eps = Float(1e-6);
+    evaluateGradient(x, _gradient);
+    if(ParallelSTL::maxAbs<3, Float>(_gradient) < eps) {
+        return true;
     }
 
-    _pressureSolver.solve(); /* now solve the linear system for cells' pressure */
+    // assign descent direction
+    StdVT<Vec> descent_dir(_gradient.size());
+    for(u64 i = 0; i < _gradient.size(); ++i) {
+        descent_dir[i] = -_gradient[i];
+    }
 
-    _grid.u.loop2D([&](std::size_t i, std::size_t j) {
-                       /* Edges of the domain, or entirely in solid */
-                       if(i == 0 || i == _grid.u.sizeX() - 1 || !(_grid.uWeights(i, j) > 0)) {
-                           _grid.u(i, j) = 0;
-                           return;
-                       }
+    // line search
+    Float step_size = lineSearch(x, _gradient, descent_dir);
 
-                       const Float centerSDF = _grid.fluidSDF(i, j);
-                       const Float leftSDF   = _grid.fluidSDF(i - 1, j);
-                       if(centerSDF < 0 || leftSDF < 0) {
-                           Float theta = 1;
-                           if(_grid.fluidSDF(i, j) >= 0 || leftSDF >= 0) {
-                               theta = Math::max(0.01f, fractionInside(leftSDF, centerSDF));
-                           }
-                           const std::size_t row = i + j * nI;
-                           const Float pressure  = Float(_pressureSolver.solution[row] - _pressureSolver.solution[row - 1]);
-                           _grid.u(i, j)        -= pressure * (dt / theta);
-                       }
-                   });
+    // update x
+    Scheduler::parallel_for(numVerts(), [&](u64 vIdx) { x[vIdx] += descent_dir[vIdx] * step_size; });
 
-    _grid.v.loop2D([&](std::size_t i, std::size_t j) {
-                       /* Edges of the domain, or entirely in solid */
-                       if(j == 0 || j == _grid.v.sizeY() - 1 || !(_grid.vWeights(i, j) > 0)) {
-                           _grid.v(i, j) = 0;
-                           return;
-                       }
+    if(step_size < eps) {
+        return true;
+    } else {
+        return false;
+    }
 
-                       const Float centerSDF = _grid.fluidSDF(i, j);
-                       const Float bottomSDF = _grid.fluidSDF(i, j - 1);
-                       if(centerSDF < 0 || bottomSDF < 0) {
-                           Float theta = 1;
-                           if(centerSDF >= 0 || bottomSDF >= 0) {
-                               theta = Math::max(0.01f, fractionInside(bottomSDF, centerSDF));
-                           }
-                           const std::size_t row = i + j * nI;
-                           const Float pressure  = Float(_pressureSolver.solution[row] - _pressureSolver.solution[row - nI]);
-                           _grid.v(i, j)        -= pressure * (dt / theta);
-                       }
-                   });
+    return false;
 }
 
-void FEMSolver::constrainVelocity() {
-    _grid.uTmp = _grid.u;
-    _grid.vTmp = _grid.v;
+/****************************************************************************************************/
 
-    _grid.u.loop2D([&](std::size_t i, std::size_t j) {
-                       if(_grid.uWeights(i, j) > 0) { /* not entirely in solid */
-                           return;
-                       }
+void FEMSolver::evaluateGradient(const StdVT<Vec>& x, StdVT<Vec>& gradient) {
+    gradient.assign(numVerts(), Vec::Zero());
 
-                       const Vector2 gridPos = Vector2(i, j + 0.5f);
-                       const Vector2 normal  = _grid.boundarySDF.interpolateGradient(gridPos);
-                       Vector2 vel           = _grid.velocityFromGridPos(gridPos);
-                       Float perp_component  = Math::dot(vel, normal);
-                       vel -= perp_component * normal;
-                       _grid.uTmp(i, j) = vel[0];
-                   });
+    for(auto& e : _elements) {
+        e.evaluateGradient(x, gradient);
+    }
+    for(auto att : _attachmentConstr) {
+        att.evaluateGradient(x, gradient);
+    }
 
-    _grid.v.loop2D([&](std::size_t i, std::size_t j) {
-                       if(_grid.vWeights(i, j) > 0) { /* not entirely in solid */
-                           return;
-                       }
-
-                       const Vector2 gridPos = Vector2(i + 0.5f, j);
-                       const Vector2 normal  = _grid.boundarySDF.interpolateGradient(gridPos);
-                       Vector2 vel           = _grid.velocityFromGridPos(gridPos);
-                       Float perp_component  = Math::dot(vel, normal);
-                       vel -= perp_component * normal;
-                       _grid.vTmp(i, j) = vel[1];
-                   });
-
-    /* Only swap u_tmp and v_tmp after constraining both u and v */
-    _grid.u.swapContent(_grid.uTmp);
-    _grid.v.swapContent(_grid.vTmp);
+    Float h_square = g_dt * g_dt;
+    Scheduler::parallel_for(numVerts(), [&](u64 vIdx) {
+                                gradient[vIdx] = _mass * (x[vIdx] - _vertPredictedPos[vIdx]) +
+                                                 0.5f * h_square * gradient[vIdx];
+                            });
 }
 
-void FEMSolver::relaxParticlePositions(Float dt) {
-    const Float     restDist      = _grid.cellSize / Constants::sqrt2() * 1.1f;
-    const Float     restDistSqr   = restDist * restDist;
-    const Float     overlappedSqr = restDistSqr * 0.0001f;
-    const Float     jitterMag     = restDist / dt / 128.0f * 0.01f;
-    constexpr Float stiffness     = 5.0f;
+/****************************************************************************************************/
 
-    _particles.loopAll([&](UnsignedInt p) {
-                           const Vector2 ppos       = _particles.positions[p];
-                           const Vector2i gridCoord = _grid.getValidCellIdx(ppos);
-                           Vector2 spring           = Vector2{ 0.0f };
+Float FEMSolver::evaluateEnergy(const StdVT<Vec>& x) {
+    Float inertia_term = 0;
+    for(u64 i = 0; i < numVerts(); ++i) {
+        inertia_term += Float(0.5) * (x[i] - _vertPredictedPos[i]).squaredNorm() * _mass;
+    }
+    Float h_square = g_dt * g_dt;
 
-                           _grid.loopNeigborParticles(gridCoord.x(), gridCoord.y(), -1, 1, -1, 1, [&](UnsignedInt q) {
-                                                          if(p == q) { return; }
+    Float energy_pure_constraints = 0;
+    for(auto ele : _elements) {
+        energy_pure_constraints += ele.evaluateEnergy(x);
+    }
 
-                                                          const Vector2 xpq  = ppos - _particles.positions[q];
-                                                          const auto distSqr = xpq.dot();
-                                                          const auto w       = stiffness * smoothKernel(distSqr, restDistSqr);
-                                                          if(distSqr > overlappedSqr) {
-                                                              spring += xpq * (w / Math::sqrt(distSqr) * restDist);
-                                                          } else {
-                                                              spring.x() += ((rand() & 255) - 128) * jitterMag;
-                                                              spring.y() += ((rand() & 255) - 128) * jitterMag;
-                                                          }
-                                                      });
+    for(auto att : _attachmentConstr) {
+        energy_pure_constraints += att.evaluateEnergy(x);
+    }
 
-                           const Vector2 newPos = ppos + dt * spring;
-                           _particles.tmp[p]    = _grid.constrainBoundary(newPos);
-                       });
-
-    _particles.positions.swap(_particles.tmp);
+    Float energy = inertia_term + h_square * energy_pure_constraints;
+    return energy;
 }
 
-void FEMSolver::gridVelocity2Particle() {
-    Array2X<Float>& u     = _grid.u;
-    Array2X<Float>& v     = _grid.v;
-    const auto      dxInv = _grid.invCellSize;
+/****************************************************************************************************/
 
-    _particles.loopAll([&](UnsignedInt p) {
-                           const Vector2 gridPos = _grid.getGridPos(_particles.positions[p]);
-                           const Vector2 px      = gridPos - Vector2(0, 0.5);
-                           const Vector2 py      = gridPos - Vector2(0.5, 0);
+Float FEMSolver::lineSearch(const StdVT<Vec>& x, const StdVT<Vec>& gradient_dir,
+                            const StdVT<Vec>& descent_dir) {
+    static constexpr Float eps = Float(1e-5);
 
-                           _particles.velocities[p] = Vector2(u.interpolateValue(px),
-                                                              v.interpolateValue(py));
-                           _particles.affineMat[p] = Matrix2x2(u.affineInterpolateValue(px) * dxInv,
-                                                               v.affineInterpolateValue(py) * dxInv);
-                       });
+    StdVT<Vec> x_plus_tdx(numVerts());
+    Float      t = 1.0f / _ls_beta;
+    Float      lhs, rhs;
+
+    Float currentObjectiveValue;
+    try {
+        currentObjectiveValue = evaluateEnergy(x);
+    } catch(const std::exception& e) {
+        // std::cout << e.what() << std::endl;
+    }
+
+    do {
+        t *= _ls_beta;
+        Scheduler::parallel_for(
+            numVerts(), [&](u64 idx) {
+                x_plus_tdx[idx] = x[idx] + t * descent_dir[idx];
+            });
+
+        lhs = 1e15f;
+        rhs = 0;
+        try {
+            lhs = evaluateEnergy(x_plus_tdx);
+        } catch(const std::exception&) {
+            continue;
+        }
+
+        rhs = currentObjectiveValue;
+        for(u64 i = 0; i < numVerts(); ++i) {
+            rhs -= _ls_alpha * t * (gradient_dir[i].squaredNorm());
+        }
+
+        if(lhs >= rhs) {
+            continue; // keep looping
+        }
+        break;        // exit looping
+    } while (t > eps);
+
+    if(t < eps) { t = 0; }
+    return t;
 }
 } }
