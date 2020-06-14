@@ -318,7 +318,7 @@ void LooseOctree::setPoints(const std::vector<Vector3>& points) {
 
 void LooseOctree::build() {
     /* Compute max depth that the tree can reach */
-    _maxDepth = 1u;
+    _maxDepth = 0u;
     std::size_t numLevelNodes   = 1u;
     std::size_t maxNumTreeNodes = 1u;
     Float       nodeWidth       = _width;
