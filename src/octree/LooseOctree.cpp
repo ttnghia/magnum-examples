@@ -333,7 +333,7 @@ void LooseOctree::build() {
     rebuild();
     _bCompleteBuild = true;
 
-    Debug() << "Octree info:" << _center;
+    Debug() << "Octree info:";
     Debug() << "       center:" << _center;
     Debug() << "       width:" << _width;
     Debug() << "       min width:" << _minWidth;
