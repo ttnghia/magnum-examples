@@ -51,15 +51,25 @@ set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 
 corrade_add_resource(FEMSimulation_RESOURCES resources.conf)
 
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+include_directories(D:/Projects/InverseSimulation/Code/InvFEM/Libs/Eigen3/include/eigen3/)
+include_directories(Prototype/)
+include_directories(D:/Dev/Libs/tbb/include)
+file(GLOB_RECURSE Smoke2D_SOURCES ./Prototype/*.cpp)
+
 add_executable(magnum-femsimulation WIN32
     FEMSimulationExample.cpp
     FEMSolver/SolverData.h
     FEMSolver/FEMSolver.h
     FEMSolver/FEMSolver.cpp
+        ${Smoke2D_SOURCES}
     ${FEMSimulation_RESOURCES}
     ../arcball/ArcBall.cpp
     ../motionblur/Icosphere.cpp)
 target_link_libraries(magnum-femsimulation PRIVATE
+    D:/Dev/Libs/tbb/lib/tbb.lib
     Corrade::Main
     Magnum::Application
     Magnum::GL
