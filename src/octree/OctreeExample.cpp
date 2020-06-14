@@ -81,14 +81,16 @@ protected:
     static constexpr UnsignedInt MaxPoints { 8 };
     Vector3   _spheresVel[MaxPoints];
     Object3D* _spheres[MaxPoints];
-    bool      _pausedMotion = true;
+    bool      _bAnimation = true;
 
     /* Store positions in a vector to construct octree */
     std::vector<Vector3> _spheresPos = std::vector<Vector3>(MaxPoints);
 
     /* Octree and boundary boxes */
     Containers::Pointer<LooseOctree> _octree;
+    WireframeBox*                    _rootNodeBoundingBox;
     std::vector<WireframeBox*>       _treeNodeBoundingBoxes;
+    bool _bDrawBoundingBoxes = true;
 };
 
 using namespace Math::Literals;
@@ -137,8 +139,9 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         _spheresPos[i] = pos;
         _spheresVel[i] = pos;
 
-        (new Icosphere(_mesh.get(), _shader.get(), 0x9d03fc_rgbf, _spheres[i], _drawables.get()))
-            ->scale(Vector3{ 0.5f });
+        //(new Icosphere(_mesh.get(), _shader.get(), 0x9d03fc_rgbf, _spheres[i], _drawables.get()))
+        (new Icosphere(_mesh.get(), _shader.get(), Color3{ tmp }, _spheres[i], _drawables.get()))
+            ->scale(Vector3{ 0.75f });
     }
 
     /* Setup octree */
@@ -146,6 +149,16 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         _octree.emplace(Vector3{ 0 }, 1.0f, 0.1f);
         _octree->setPoints(_spheresPos);
         _octree->build();
+
+        /* Add a box for drawing the root node with a different color */
+        _rootNodeBoundingBox = new WireframeBox(_scene.get(), _drawables.get());
+        _rootNodeBoundingBox->setTransformation(
+            Matrix4::translation(_octree->getRootNode()->getCenter()) *
+            Matrix4::scaling(Vector3{ _octree->getRootNode()->getHalfWidth()*1.001f })
+            )
+            .setColor(Color3(0, 1, 1));
+
+        /* Draw the remaining nodes */
         updateTreeNodeBoundingBoxes();
     }
 
@@ -160,7 +173,7 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
 void OctreeExample::drawEvent() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
 
-    if(!_pausedMotion) {
+    if(_bAnimation) {
         updatePointsAndOctree();
         updateTreeNodeBoundingBoxes();
     }
@@ -193,16 +206,19 @@ void OctreeExample::updatePointsAndOctree() {
 }
 
 void OctreeExample::updateTreeNodeBoundingBoxes() {
+    if(!_bDrawBoundingBoxes) {
+        return;
+    }
     const auto& activeTreeNodeBlocks = _octree->getActiveTreeNodeBlocks();
-
     std::size_t boxIdx{ 0 };
+
     for(OctreeNodeBlock* const pNodeBlock : activeTreeNodeBlocks) {
         for(std::size_t childIdx = 0; childIdx < 8; ++childIdx) {
             OctreeNode* const pNode = &pNodeBlock->_nodes[childIdx];
             if(!pNode->isLeaf() || pNode->getPointCount() > 0) { /* non-empty node */
                 if(boxIdx == _treeNodeBoundingBoxes.size()) {
                     auto drawableBox = new WireframeBox(_scene.get(), _drawables.get());
-                    drawableBox->setColor(Color3(1, 1, 0));
+                    drawableBox->setColor(Color3(0.1f, 0.5f, 0.6f));
                     _treeNodeBoundingBoxes.emplace_back(drawableBox);
                 }
                 _treeNodeBoundingBoxes[boxIdx++]->setTransformation(
@@ -230,12 +246,24 @@ void OctreeExample::viewportEvent(ViewportEvent& event) {
 
 void OctreeExample::keyPressEvent(KeyEvent& event) {
     switch(event.key()) {
+        case KeyEvent::Key::B:
+            _bDrawBoundingBoxes ^= true;
+            if(!_bDrawBoundingBoxes) {
+                for(auto& drawableBox: _treeNodeBoundingBoxes) {
+                    drawableBox->setTransformation(
+                        Matrix4::translation(Vector3{ 100 }) *
+                        Matrix4::scaling(Vector3{ 0 })
+                        );
+                }
+            }
+            event.setAccepted(true);
+            break;
         case KeyEvent::Key::R:
             _arcballCamera->reset();
             event.setAccepted(true);
             break;
         case KeyEvent::Key::Space:
-            _pausedMotion ^= true;
+            _bAnimation ^= true;
             event.setAccepted(true);
             break;
         default:;
