@@ -66,16 +66,18 @@ protected:
        drawble objects */
     Containers::Pointer<Scene3D>                     _scene;
     Containers::Pointer<SceneGraph::DrawableGroup3D> _drawables;
+    Containers::Pointer<ArcBallCamera>               _arcballCamera;
 
-    /* Camera helpers */
-    Containers::Pointer<Object3D>             _objCamera3D;
-    Containers::Pointer<SceneGraph::Camera3D> _camera3D;
-    Containers::Pointer<ArcBallCamera>        _arcballCamera;
-
-    Object3D*                           spheres[3];
+    /* Render points as spheres */
     Containers::Pointer<GL::Mesh>       _mesh;
     Containers::Pointer<Shaders::Phong> _shader;
 
+    static constexpr UnsignedInt MaxPoints { 8 };
+    Vector3   _spheresPos[MaxPoints];
+    Vector3   _spheresVel[MaxPoints];
+    Object3D* _spheres[MaxPoints];
+
+    /* Randomly move points */
     bool _pausedMotion = false;
 };
 
@@ -103,14 +105,6 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         _drawables.emplace();
 
         /* Configure camera */
-        _objCamera3D.emplace(_scene.get());
-        _objCamera3D->translate(Vector3::zAxis(3.0f));
-
-        _camera3D.emplace(*_objCamera3D);
-        _camera3D->setAspectRatioPolicy(SceneGraph::AspectRatioPolicy::Extend)
-            .setProjectionMatrix(Matrix4::perspectiveProjection(35.0_degf, 4.0f / 3.0f, 0.001f, 1000.0f))
-            .setViewport(GL::defaultFramebuffer.viewport().size());
-
         const Vector3 eye{ Vector3::zAxis(5.0f) };
         const Vector3 viewCenter{ };
         const Vector3 up{ Vector3::yAxis() };
@@ -119,40 +113,21 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         _arcballCamera->setLagging(0.85f);
     }
 
+    /* Setup point (render as spheres) */
+    _shader.emplace();
     _mesh.emplace();
     *_mesh = MeshTools::compile(Primitives::icosphereSolid(3));
-    _shader.emplace();
+    for(std::size_t i = 0; i < MaxPoints; ++i) {
+        const Vector3 tmp{ std::rand() / Float(RAND_MAX),
+                           std::rand() / Float(RAND_MAX),
+                           std::rand() / Float(RAND_MAX) };
+        const Vector3 pos = tmp * 2 - Vector3{ 1 };
+        _spheres[i] = new Object3D(_scene.get());
+        _spheres[i]->setTransformation(Matrix4::translation(pos));
+        _spheresPos[i] = pos;
+        _spheresVel[i] = pos;
 
-    /* Setup point (render as spheres) */ {
-        spheres[0] = new Object3D(_scene.get());
-        (new Icosphere(_mesh.get(), _shader.get(), 0xff0000_rgbf, spheres[0], _drawables.get()))
-            ->translate(Vector3::yAxis(0.25f));
-        (new Icosphere(_mesh.get(), _shader.get(), 0xff0000_rgbf, spheres[0], _drawables.get()))
-            ->translate(Vector3::yAxis(0.25f))
-            .rotateZ(120.0_degf);
-        (new Icosphere(_mesh.get(), _shader.get(), 0xff0000_rgbf, spheres[0], _drawables.get()))
-            ->translate(Vector3::yAxis(0.25f))
-            .rotateZ(240.0_degf);
-
-        spheres[1] = new Object3D(_scene.get());
-        (new Icosphere(_mesh.get(), _shader.get(), 0x00ff00_rgbf, spheres[1], _drawables.get()))
-            ->translate(Vector3::yAxis(0.50f));
-        (new Icosphere(_mesh.get(), _shader.get(), 0x00ff00_rgbf, spheres[1], _drawables.get()))
-            ->translate(Vector3::yAxis(0.50f))
-            .rotateZ(120.0_degf);
-        (new Icosphere(_mesh.get(), _shader.get(), 0x00ff00_rgbf, spheres[1], _drawables.get()))
-            ->translate(Vector3::yAxis(0.50f))
-            .rotateZ(240.0_degf);
-
-        spheres[2] = new Object3D(_scene.get());
-        (new Icosphere(_mesh.get(), _shader.get(), 0x0000ff_rgbf, spheres[2], _drawables.get()))
-            ->translate(Vector3::yAxis(0.75f));
-        (new Icosphere(_mesh.get(), _shader.get(), 0x0000ff_rgbf, spheres[2], _drawables.get()))
-            ->translate(Vector3::yAxis(0.75f))
-            .rotateZ(120.0_degf);
-        (new Icosphere(_mesh.get(), _shader.get(), 0x0000ff_rgbf, spheres[2], _drawables.get()))
-            ->translate(Vector3::yAxis(0.75f))
-            .rotateZ(240.0_degf);
+        new Icosphere(_mesh.get(), _shader.get(), Color3(tmp), _spheres[i], _drawables.get());
     }
 
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
@@ -167,11 +142,22 @@ void OctreeExample::drawEvent() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
 
     if(!_pausedMotion) {
-        //
+        static constexpr Float dt{ 1.0f / 300.0f };
+
+        for(std::size_t i = 0; i < MaxPoints; ++i) {
+            Vector3 pos = _spheresPos[i] + _spheresVel[i] * dt;
+            for(std::size_t j = 0; j < 3; ++j) {
+                if(pos[j] < -1.0f || pos[j] > 1.0f) {
+                    _spheresVel[i][j] = -_spheresVel[i][j];
+                }
+                pos[j] = Math::clamp(pos[j], -1.0f, 1.0f);
+            }
+            _spheresPos[i] = pos;
+            _spheres[i]->setTransformation(Matrix4::translation(pos));
+        }
     }
 
     _arcballCamera->update();
-    //    _camera3D->draw(*drawables);
     _arcballCamera->draw(*_drawables);
 
     swapBuffers();
@@ -183,14 +169,12 @@ void OctreeExample::viewportEvent(ViewportEvent& event) {
     /* Resize the main framebuffer */
     GL::defaultFramebuffer.setViewport({ {}, event.framebufferSize() });
     _arcballCamera->reshape(event.windowSize(), event.framebufferSize());
-
-    /* Recompute the camera's projection matrix */
-    _camera3D->setViewport(event.framebufferSize());
 }
 
 void OctreeExample::keyPressEvent(KeyEvent& event) {
     switch(event.key()) {
         case KeyEvent::Key::R:
+            _arcballCamera->reset();
             event.setAccepted(true);
             break;
         case KeyEvent::Key::Space:
