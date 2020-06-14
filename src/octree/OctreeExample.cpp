@@ -45,6 +45,7 @@
 #include <Magnum/Shaders/Phong.h>
 #include <Magnum/Trade/MeshData.h>
 
+#include "LooseOctree.h"
 #include "../arcball/ArcBallCamera.h"
 #include "../motionblur/Icosphere.h"
 
@@ -73,12 +74,14 @@ protected:
     Containers::Pointer<Shaders::Phong> _shader;
 
     static constexpr UnsignedInt MaxPoints { 8 };
-    Vector3   _spheresPos[MaxPoints];
     Vector3   _spheresVel[MaxPoints];
     Object3D* _spheres[MaxPoints];
+    bool      _pausedMotion = false;
 
-    /* Randomly move points */
-    bool _pausedMotion = false;
+    /* Store positions in a vector to construct octree */
+    std::vector<Vector3> _spheresPos = std::vector<Vector3>(MaxPoints);
+
+    Containers::Pointer<LooseOctree> _octree;
 };
 
 using namespace Math::Literals;
@@ -130,6 +133,13 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         new Icosphere(_mesh.get(), _shader.get(), Color3(tmp), _spheres[i], _drawables.get());
     }
 
+    /* Setup octree */
+    {
+        _octree.emplace(Vector3{ 0 }, 1.1f, 0.1f);
+        _octree->setPoints(_spheresPos);
+        _octree->build();
+    }
+
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
     GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
 
@@ -155,6 +165,8 @@ void OctreeExample::drawEvent() {
             _spheresPos[i] = pos;
             _spheres[i]->setTransformation(Matrix4::translation(pos));
         }
+
+        _octree->update();
     }
 
     _arcballCamera->update();
