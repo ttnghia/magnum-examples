@@ -44,18 +44,18 @@ struct OctreePoint {
     OctreePoint& operator=(const OctreePoint&) = delete;
 
     OctreePoint() = default;
-    OctreePoint(const Vector3& position) : _position(position) {}
+    OctreePoint(const Vector3& position) : position(position) {}
 
-    Vector3      _position;
-    OctreeNode*  _pNode { nullptr }; /* pointer to the octree node containing this point */
-    OctreePoint* _pNext { nullptr }; /* pointer to the next point in the point list of the octree node */
+    Vector3      position;
+    OctreeNode*  pNode { nullptr }; /* pointer to the octree node containing this point */
+    OctreePoint* pNext { nullptr }; /* pointer to the next point in the point list of the octree node */
 
     /* Flag to keep track of point validity
      * During tree update, it is true if:
      *  1) the point is still contained in the tree node that it has previously been inserted to, and
      *  2) depth of the current node reaches maxDepth
      */
-    bool _bValid { true };
+    bool bValid { true };
 };
 
 /* Forward declaration */
@@ -202,19 +202,19 @@ public:
      * \param width Width of the octree bounding box
      * \param minWidth Minimum allowed width of the tree nodes
      */
-    explicit LooseOctree(const Vector3& center, const Float width, const Float minWidth) :
+    explicit LooseOctree(const Vector3& center, const Float halfWidth, const Float minHalfWidth) :
         _center(center),
-        _width(width),
-        _minWidth(minWidth),
-        _pRootNode(new OctreeNode(this, nullptr, center, width * static_cast<Float>(0.5), 0)),
+        _halfWidth(halfWidth),
+        _minHalfWidth(minHalfWidth),
+        _pRootNode(new OctreeNode(this, nullptr, center, halfWidth, 0)),
         _numAllocatedNodes(1u) {}
 
     /* Cleanup memory here */
     ~LooseOctree();
 
     const Vector3 getCenter() const { return _center; }
-    Float getWidth() const { return _width; }
-    Float getMinWidth() const { return _minWidth; }
+    Float getHalfWidth() const { return _halfWidth; }
+    Float getMinHalfWidth() const { return _minHalfWidth; }
     std::size_t getMaxDepth() const { return _maxDepth; }
     std::size_t getNumAllocatedNodes() const { return _numAllocatedNodes; }
     OctreeNode* getRootNode() const { return _pRootNode; }
@@ -233,6 +233,13 @@ public:
      * (the points will not be populated to tree nodes until calling to build())
      */
     void setPoints(const std::vector<Vector3>& points);
+
+    /*
+     * Update points data for the tree
+     * (the point array must have the same number of points
+     *  as the array set by the setPoints() function)
+     */
+    void updatePoints(const std::vector<Vector3>& points);
 
     /*
      * true: rebuilt the tree from scratch in every update
@@ -297,9 +304,9 @@ private:
     void deallocateMemoryPool();
 
     const Vector3 _center;                                  /* center of the tree */
-    const Float   _width;                                   /* width of the tree bounding box */
+    const Float   _halfWidth;                               /* width of the tree bounding box */
 
-    const Float _minWidth;                                  /* minimum width allowed for the tree nodes */
+    const Float _minHalfWidth;                              /* minimum width allowed for the tree nodes */
     std::size_t _maxDepth;                                  /* max depth of the tree, which is computed based on _minWidth */
 
     OctreeNode* const _pRootNode;                           /* root node, should not be reassigned throughout the existence of the tree */
