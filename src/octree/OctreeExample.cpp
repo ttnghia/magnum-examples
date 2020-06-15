@@ -52,6 +52,9 @@
 #include "../motionblur/Icosphere.h"
 #include "../fluidsimulation3d/DrawableObjects/WireframeObjects.h"
 
+#include <chrono>
+using Clock = std::chrono::high_resolution_clock;
+
 namespace Magnum { namespace Examples {
 class OctreeExample : public Platform::Application {
 public:
@@ -100,12 +103,14 @@ using namespace Math::Literals;
 
 OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application{arguments, NoCreate} {
     Utility::Arguments args;
-    args.addOption("num-spheres", "10")
+    args.addOption("num-spheres", "50")
         .setHelp("num-spheres", "number of spheres to simulate", "SPHERES")
-        .addOption("sphere-radius", "0.05")
+        .addOption("sphere-radius", "0.1")
         .setHelp("sphere-radius", "radius of the spheres", "RADIUS")
-        .addOption("sphere-velocity", "1.0")
+        .addOption("sphere-velocity", "2.0")
         .setHelp("sphere-velocity", "velocity of the spheres", "VELOCITY")
+        .addOption("benchmark", "0")
+        .setHelp("benchmark", "run the benchmark to compare collision detection time", "BENCHMARK")
         .parse(arguments.argc, arguments.argv);
 
     /* Setup window and parameters */
@@ -184,6 +189,32 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
 
         /* Draw the remaining nodes */
         updateTreeNodeBoundingBoxes();
+
+        if(args.value<std::size_t>("benchmark")) {
+            const std::size_t numTest = args.value<std::size_t>("benchmark");
+            Debug{} << "Running benchmark for"
+                    << _spheres.size() << "spheres,"
+                    << numTest << "iterations";
+
+            Clock::time_point startTime = Clock::now();
+            for(size_t i = 0; i < numTest; ++i) {
+                collisionDetectionAndHandlingBruteForce();
+            }
+            Clock::time_point endTime  = Clock::now();
+            Float             elapsed1 = std::chrono::duration<Float, std::milli>(
+                endTime - startTime).count();
+            Debug{} << "Brute force collision detection:" << elapsed1 / static_cast<Float>(numTest);
+
+            startTime = Clock::now();
+            for(size_t i = 0; i < numTest; ++i) {
+                collisionDetectionAndHandlingUsingOctree();
+            }
+            endTime = Clock::now();
+            Float elapsed2 = std::chrono::duration<Float, std::milli>(
+                endTime - startTime).count();
+            Debug{} << "Collision detection using Octree:" << elapsed2 / static_cast<Float>(numTest);
+            Debug{} << "Speedup:" << elapsed1 / elapsed2;
+        }
     }
 
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
@@ -238,8 +269,8 @@ void OctreeExample::collisionDetectionAndHandlingBruteForce() {
 void OctreeExample::collisionDetectionAndHandlingUsingOctree() {
     const OctreeNode* const rootNode = _octree->getRootNode();
     for(std::size_t i = 0; i < _spheresPos.size(); ++i) {
-        const Vector3 ppos = _spheresPos[i];
-        const Vector3 pvel = _spheresVel[i];
+        const Vector3& ppos = _spheresPos[i];
+        const Vector3& pvel = _spheresVel[i];
         checkCollisionWithSubTree(rootNode, i, ppos, pvel);
     }
 }
@@ -252,9 +283,13 @@ void OctreeExample::checkCollisionWithSubTree(const OctreeNode* const pNode, std
 
     if(!pNode->isLeaf()) {
         for(std::size_t childIdx = 0; childIdx < 8; childIdx++) {
-            const OctreeNode* const pChildNode = pNode->getChildNode(childIdx);
-            checkCollisionWithSubTree(pChildNode, i, ppos, pvel);
+            const OctreeNode* const pChild = pNode->getChildNode(childIdx);
+            checkCollisionWithSubTree(pChild, i, ppos, pvel);
         }
+    }
+
+    if(!pNode->getPointCount() == 0) {
+        return;
     }
 
     const OctreePoint* pIter = pNode->getPointList();
@@ -271,7 +306,6 @@ void OctreeExample::checkCollisionWithSubTree(const OctreeNode* const pNode, std
             if(vp < 0 && dpq < 2 * _sphereRadius) {
                 const Vector3 vNormal = vp * pospqNorm;
                 _spheresVel[i] = (_spheresVel[i] - vNormal).normalized();
-                _spheresVel[j] = (_spheresVel[j] + vNormal).normalized();
             }
         }
         pIter = pIter->pNext;
