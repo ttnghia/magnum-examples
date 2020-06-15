@@ -87,6 +87,7 @@ public:
     bool isLeaf() const { return _bIsLeaf; }
     const Vector3 getCenter() const { return _center; }
     Float getHalfWidth() const { return _halfWidth; }
+    std::size_t getDepth() const { return _depth; }
 
     /* Get a child node (child idx from 0 to 7) */
     OctreeNode* getChildNode(const std::size_t childIdx) const;
