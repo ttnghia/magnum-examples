@@ -151,6 +151,30 @@ public:
                && z < _upperBoundExtended[2];
     }
 
+    /*
+     * Check if the given bound is contained in the node loose boundary (which is 2X bigger than the bounding box)
+     */
+    bool looselyContains(const Vector3& lower, const Vector3& upper) const {
+        return lower.x() > _lowerBoundExtended[0]
+               && lower.y() > _lowerBoundExtended[1]
+               && lower.z() > _lowerBoundExtended[2]
+               && upper.x() < _upperBoundExtended[0]
+               && upper.y() < _upperBoundExtended[1]
+               && upper.z() < _upperBoundExtended[2];
+    }
+
+    /*
+     * Check if the given bound is overlapped with the node loose boundary (which is 2X bigger than the bounding box)
+     */
+    bool looselyOverlaps(const Vector3& lower, const Vector3& upper) const {
+        return upper.x() > _lowerBoundExtended[0]
+               && upper.y() > _lowerBoundExtended[1]
+               && upper.z() > _lowerBoundExtended[2]
+               && lower.x() < _upperBoundExtended[0]
+               && lower.y() < _upperBoundExtended[1]
+               && lower.z() < _upperBoundExtended[2];
+    }
+
     #if 0
     // todo
     /*

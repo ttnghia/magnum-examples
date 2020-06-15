@@ -73,7 +73,8 @@ protected:
     void collisionDetectionAndHandlingBruteForce();
     void collisionDetectionAndHandlingUsingOctree();
     void checkCollisionWithSubTree(const OctreeNode* const pNode, std::size_t i,
-                                   const Vector3& ppos, const Vector3& pvel);
+                                   const Vector3& ppos, const Vector3& pvel,
+                                   const Vector3& lower, const Vector3& upper);
     void updateTreeNodeBoundingBoxes();
 
     /* Scene and drawable group must be constructed before camera and other
@@ -176,7 +177,8 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
 
     /* Setup octree */
     {
-        _octree.emplace(Vector3{ 0 }, 1.0f, 0.1f);
+        /* Octree nodes should have half width no smaller than the sphere radius */
+        _octree.emplace(Vector3{ 0 }, 1.0f, _sphereRadius);
         _octree->setPoints(_spheresPos);
         _octree->build();
 
@@ -268,22 +270,25 @@ void OctreeExample::collisionDetectionAndHandlingBruteForce() {
 void OctreeExample::collisionDetectionAndHandlingUsingOctree() {
     const OctreeNode* const rootNode = _octree->getRootNode();
     for(std::size_t i = 0; i < _spheresPos.size(); ++i) {
-        const Vector3& ppos = _spheresPos[i];
-        const Vector3& pvel = _spheresVel[i];
-        checkCollisionWithSubTree(rootNode, i, ppos, pvel);
+        const Vector3& ppos  = _spheresPos[i];
+        const Vector3& pvel  = _spheresVel[i];
+        const Vector3  lower = ppos - Vector3{ _sphereRadius };
+        const Vector3  upper = ppos + Vector3{ _sphereRadius };
+        checkCollisionWithSubTree(rootNode, i, ppos, pvel, lower, upper);
     }
 }
 
 void OctreeExample::checkCollisionWithSubTree(const OctreeNode* const pNode, std::size_t i,
-                                              const Vector3& ppos, const Vector3& pvel) {
-    if(!pNode->looselyContains(ppos)) {
+                                              const Vector3& ppos, const Vector3& pvel,
+                                              const Vector3& lower, const Vector3& upper) {
+    if(!pNode->looselyOverlaps(lower, upper)) {
         return;
     }
 
     if(!pNode->isLeaf()) {
         for(std::size_t childIdx = 0; childIdx < 8; childIdx++) {
             const OctreeNode* const pChild = pNode->getChildNode(childIdx);
-            checkCollisionWithSubTree(pChild, i, ppos, pvel);
+            checkCollisionWithSubTree(pChild, i, ppos, pvel, lower, upper);
         }
     }
 
