@@ -69,7 +69,7 @@ protected:
     void mouseMoveEvent(MouseMoveEvent& event) override;
     void mouseScrollEvent(MouseScrollEvent& event) override;
 
-    void updatePoints();
+    void movePoints();
     void collisionDetectionAndHandlingBruteForce();
     void collisionDetectionAndHandlingUsingOctree();
     void checkCollisionWithSubTree(const OctreeNode* const pNode, std::size_t i,
@@ -229,9 +229,8 @@ void OctreeExample::drawEvent() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
 
     if(_bAnimation) {
-        collisionDetectionAndHandlingBruteForce();
         collisionDetectionAndHandlingUsingOctree();
-        updatePoints();
+        movePoints();
         _octree->updatePoints(_spheresPos);
         _octree->update();
         updateTreeNodeBoundingBoxes();
@@ -288,7 +287,7 @@ void OctreeExample::checkCollisionWithSubTree(const OctreeNode* const pNode, std
         }
     }
 
-    if(!pNode->getPointCount() == 0) {
+    if(pNode->getPointCount() == 0) {
         return;
     }
 
@@ -312,7 +311,7 @@ void OctreeExample::checkCollisionWithSubTree(const OctreeNode* const pNode, std
     }
 }
 
-void OctreeExample::updatePoints() {
+void OctreeExample::movePoints() {
     static constexpr Float dt{ 1.0f / 300.0f };
 
     for(std::size_t i = 0; i < _spheresPos.size(); ++i) {
