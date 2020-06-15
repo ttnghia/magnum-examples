@@ -66,7 +66,11 @@ protected:
     void mouseMoveEvent(MouseMoveEvent& event) override;
     void mouseScrollEvent(MouseScrollEvent& event) override;
 
-    void updatePointsAndOctree();
+    void updatePoints();
+    void collisionDetectionAndHandlingBruteForce();
+    void collisionDetectionAndHandlingUsingOctree();
+    void checkCollisionWithSubTree(const OctreeNode* const pNode, std::size_t i,
+                                   const Vector3& ppos, const Vector3& pvel);
     void updateTreeNodeBoundingBoxes();
 
     /* Scene and drawable group must be constructed before camera and other
@@ -82,6 +86,7 @@ protected:
     std::vector<Vector3>   _spheresPos;
     std::vector<Vector3>   _spheresVel;
     std::vector<Object3D*> _spheres;
+    Float                  _sphereRadius;
     bool                   _bAnimation = true;
 
     /* Octree and boundary boxes */
@@ -99,6 +104,8 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         .setHelp("num-spheres", "number of spheres to simulate", "SPHERES")
         .addOption("sphere-radius", "0.05")
         .setHelp("sphere-radius", "radius of the spheres", "RADIUS")
+        .addOption("sphere-velocity", "1.0")
+        .setHelp("sphere-velocity", "velocity of the spheres", "VELOCITY")
         .parse(arguments.argc, arguments.argv);
 
     /* Setup window and parameters */
@@ -153,11 +160,12 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
             _spheres[i] = new Object3D(_scene.get());
             _spheres[i]->setTransformation(Matrix4::translation(pos));
             _spheresPos[i] = pos;
-            _spheresVel[i] = vel;
+            _spheresVel[i] = vel * args.value<Float>("sphere-velocity");
 
             /* Icosphere is already scaled by 0.1, thus we must multiply by 10 to get a unit sphere */
+            _sphereRadius = args.value<Float>("sphere-radius");
             (new Icosphere(_mesh.get(), _shader.get(), Color3{ tmpPos }, _spheres[i], _drawables.get()))
-                ->scale(Vector3{ 10.0f * args.value<Float>("sphere-radius") });
+                ->scale(Vector3{ 10.0f * _sphereRadius });
         }
     }
 
@@ -172,8 +180,7 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         _rootNodeBoundingBox->setTransformation(
             Matrix4::translation(_octree->getRootNode()->getCenter()) *
             Matrix4::scaling(Vector3{ _octree->getRootNode()->getHalfWidth()*1.001f })
-            )
-            .setColor(Color3(0, 1, 1));
+            ).setColor(Color3(0, 1, 1));
 
         /* Draw the remaining nodes */
         updateTreeNodeBoundingBoxes();
@@ -191,7 +198,11 @@ void OctreeExample::drawEvent() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
 
     if(_bAnimation) {
-        updatePointsAndOctree();
+        collisionDetectionAndHandlingBruteForce();
+        collisionDetectionAndHandlingUsingOctree();
+        updatePoints();
+        _octree->updatePoints(_spheresPos);
+        _octree->update();
         updateTreeNodeBoundingBoxes();
     }
 
@@ -203,7 +214,71 @@ void OctreeExample::drawEvent() {
     redraw();
 }
 
-void OctreeExample::updatePointsAndOctree() {
+void OctreeExample::collisionDetectionAndHandlingBruteForce() {
+    for(std::size_t i = 0; i < _spheresPos.size(); ++i) {
+        const Vector3 ppos = _spheresPos[i];
+        const Vector3 pvel = _spheresVel[i];
+        for(std::size_t j = i + 1; j < _spheresPos.size(); ++j) {
+            const Vector3 qpos      = _spheresPos[j];
+            const Vector3 qvel      = _spheresVel[j];
+            const Vector3 velpq     = pvel - qvel;
+            const Vector3 pospq     = ppos - qpos;
+            const Float   dpq       = pospq.length();
+            const Vector3 pospqNorm = pospq / dpq;
+            const Float   vp        = Math::dot(velpq, pospqNorm);
+            if(vp < 0 && dpq < 2 * _sphereRadius) {
+                const Vector3 vNormal = vp * pospqNorm;
+                _spheresVel[i] = (_spheresVel[i] - vNormal).normalized();
+                _spheresVel[j] = (_spheresVel[j] + vNormal).normalized();
+            }
+        }
+    }
+}
+
+void OctreeExample::collisionDetectionAndHandlingUsingOctree() {
+    const OctreeNode* const rootNode = _octree->getRootNode();
+    for(std::size_t i = 0; i < _spheresPos.size(); ++i) {
+        const Vector3 ppos = _spheresPos[i];
+        const Vector3 pvel = _spheresVel[i];
+        checkCollisionWithSubTree(rootNode, i, ppos, pvel);
+    }
+}
+
+void OctreeExample::checkCollisionWithSubTree(const OctreeNode* const pNode, std::size_t i,
+                                              const Vector3& ppos, const Vector3& pvel) {
+    if(!pNode->looselyContains(ppos)) {
+        return;
+    }
+
+    if(!pNode->isLeaf()) {
+        for(std::size_t childIdx = 0; childIdx < 8; childIdx++) {
+            const OctreeNode* const pChildNode = pNode->getChildNode(childIdx);
+            checkCollisionWithSubTree(pChildNode, i, ppos, pvel);
+        }
+    }
+
+    const OctreePoint* pIter = pNode->getPointList();
+    while(pIter) {
+        const std::size_t j = pIter->idx;
+        if(j != i) {
+            const Vector3 qpos      = _spheresPos[j];
+            const Vector3 qvel      = _spheresVel[j];
+            const Vector3 velpq     = pvel - qvel;
+            const Vector3 pospq     = ppos - qpos;
+            const Float   dpq       = pospq.length();
+            const Vector3 pospqNorm = pospq / dpq;
+            const Float   vp        = Math::dot(velpq, pospqNorm);
+            if(vp < 0 && dpq < 2 * _sphereRadius) {
+                const Vector3 vNormal = vp * pospqNorm;
+                _spheresVel[i] = (_spheresVel[i] - vNormal).normalized();
+                _spheresVel[j] = (_spheresVel[j] + vNormal).normalized();
+            }
+        }
+        pIter = pIter->pNext;
+    }
+}
+
+void OctreeExample::updatePoints() {
     static constexpr Float dt{ 1.0f / 300.0f };
 
     for(std::size_t i = 0; i < _spheresPos.size(); ++i) {
@@ -217,9 +292,6 @@ void OctreeExample::updatePointsAndOctree() {
         _spheresPos[i] = pos;
         _spheres[i]->setTransformation(Matrix4::translation(pos));
     }
-
-    _octree->updatePoints(_spheresPos);
-    _octree->update();
 }
 
 void OctreeExample::updateTreeNodeBoundingBoxes() {

@@ -44,9 +44,10 @@ struct OctreePoint {
     OctreePoint& operator=(const OctreePoint&) = delete;
 
     OctreePoint() = default;
-    OctreePoint(const Vector3& position) : position(position) {}
+    OctreePoint(const Vector3& position_, std::size_t idx_) : position(position_), idx(idx_) {}
 
     Vector3      position;
+    std::size_t  idx;               /* Index of the point in the original array */
     OctreeNode*  pNode { nullptr }; /* pointer to the octree node containing this point */
     OctreePoint* pNext { nullptr }; /* pointer to the next point in the point list of the octree node */
 

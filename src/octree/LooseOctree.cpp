@@ -312,7 +312,7 @@ void LooseOctree::setPoints(const std::vector<Vector3>& points) {
     _octreePointsPtr = new OctreePoint[_nPoints];
     for(std::size_t idx = 0; idx < _nPoints; ++idx) {
         const auto pPoint = &_octreePointsPtr[idx];
-        new(pPoint) OctreePoint(points[idx]); /* placement new */
+        new(pPoint) OctreePoint(points[idx], idx); /* placement new */
     }
 }
 
