@@ -29,6 +29,7 @@
  */
 
 #include <Corrade/Containers/Pointer.h>
+#include <Corrade/Utility/Arguments.h>
 #include <Magnum/GL/DefaultFramebuffer.h>
 #include <Magnum/GL/Renderer.h>
 #include <Magnum/GL/Context.h>
@@ -74,17 +75,14 @@ protected:
     Containers::Pointer<SceneGraph::DrawableGroup3D> _drawables;
     Containers::Pointer<ArcBallCamera>               _arcballCamera;
 
-    /* Render points as spheres */
+    /* Render points as spheres with size */
     Containers::Pointer<GL::Mesh>       _mesh;
     Containers::Pointer<Shaders::Phong> _shader;
 
-    static constexpr UnsignedInt MaxPoints { 8 };
-    Vector3   _spheresVel[MaxPoints];
-    Object3D* _spheres[MaxPoints];
-    bool      _bAnimation = true;
-
-    /* Store positions in a vector to construct octree */
-    std::vector<Vector3> _spheresPos = std::vector<Vector3>(MaxPoints);
+    std::vector<Vector3>   _spheresPos;
+    std::vector<Vector3>   _spheresVel;
+    std::vector<Object3D*> _spheres;
+    bool                   _bAnimation = true;
 
     /* Octree and boundary boxes */
     Containers::Pointer<LooseOctree> _octree;
@@ -96,7 +94,14 @@ protected:
 using namespace Math::Literals;
 
 OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application{arguments, NoCreate} {
-    /* Setup window */
+    Utility::Arguments args;
+    args.addOption("num-spheres", "10")
+        .setHelp("num-spheres", "number of spheres to simulate", "SPHERES")
+        .addOption("sphere-radius", "0.05")
+        .setHelp("sphere-radius", "radius of the spheres", "RADIUS")
+        .parse(arguments.argc, arguments.argv);
+
+    /* Setup window and parameters */
     {
         const Vector2 dpiScaling = this->dpiScaling({});
         Configuration conf;
@@ -126,22 +131,34 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
     }
 
     /* Setup point (render as spheres) */
-    _shader.emplace();
-    _mesh.emplace();
-    *_mesh = MeshTools::compile(Primitives::icosphereSolid(3));
-    for(std::size_t i = 0; i < MaxPoints; ++i) {
-        const Vector3 tmp{ std::rand() / Float(RAND_MAX),
-                           std::rand() / Float(RAND_MAX),
-                           std::rand() / Float(RAND_MAX) };
-        const Vector3 pos = tmp * 2 - Vector3{ 1 };
-        _spheres[i] = new Object3D(_scene.get());
-        _spheres[i]->setTransformation(Matrix4::translation(pos));
-        _spheresPos[i] = pos;
-        _spheresVel[i] = pos;
+    {
+        _shader.emplace();
+        _mesh.emplace();
+        *_mesh = MeshTools::compile(Primitives::icosphereSolid(3));
 
-        //(new Icosphere(_mesh.get(), _shader.get(), 0x9d03fc_rgbf, _spheres[i], _drawables.get()))
-        (new Icosphere(_mesh.get(), _shader.get(), Color3{ tmp }, _spheres[i], _drawables.get()))
-            ->scale(Vector3{ 0.75f });
+        const UnsignedInt numSpheres = args.value<UnsignedInt>("num-spheres");
+        _spheresPos.resize(numSpheres);
+        _spheresVel.resize(numSpheres);
+        _spheres.resize(numSpheres);
+
+        for(std::size_t i = 0; i < numSpheres; ++i) {
+            const Vector3 tmpPos{ std::rand() / Float(RAND_MAX),
+                                  std::rand() / Float(RAND_MAX),
+                                  std::rand() / Float(RAND_MAX) };
+            const Vector3 tmpVel{ std::rand() / Float(RAND_MAX),
+                                  std::rand() / Float(RAND_MAX),
+                                  std::rand() / Float(RAND_MAX) };
+            const Vector3 pos = tmpPos * 2 - Vector3{ 1 };
+            const Vector3 vel = (tmpVel * 2 - Vector3{ 1 }).normalized();
+            _spheres[i] = new Object3D(_scene.get());
+            _spheres[i]->setTransformation(Matrix4::translation(pos));
+            _spheresPos[i] = pos;
+            _spheresVel[i] = vel;
+
+            /* Icosphere is already scaled by 0.1, thus we must multiply by 10 to get a unit sphere */
+            (new Icosphere(_mesh.get(), _shader.get(), Color3{ tmpPos }, _spheres[i], _drawables.get()))
+                ->scale(Vector3{ 10.0f * args.value<Float>("sphere-radius") });
+        }
     }
 
     /* Setup octree */
@@ -189,7 +206,7 @@ void OctreeExample::drawEvent() {
 void OctreeExample::updatePointsAndOctree() {
     static constexpr Float dt{ 1.0f / 300.0f };
 
-    for(std::size_t i = 0; i < MaxPoints; ++i) {
+    for(std::size_t i = 0; i < _spheresPos.size(); ++i) {
         Vector3 pos = _spheresPos[i] + _spheresVel[i] * dt;
         for(std::size_t j = 0; j < 3; ++j) {
             if(pos[j] < -1.0f || pos[j] > 1.0f) {
