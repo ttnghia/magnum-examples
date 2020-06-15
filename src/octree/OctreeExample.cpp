@@ -104,13 +104,13 @@ using namespace Math::Literals;
 
 OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application{arguments, NoCreate} {
     Utility::Arguments args;
-    args.addOption("num-spheres", "50")
+    args.addOption("num-spheres", "100")
         .setHelp("num-spheres", "number of spheres to simulate", "SPHERES")
         .addOption("sphere-radius", "0.1")
         .setHelp("sphere-radius", "radius of the spheres", "RADIUS")
         .addOption("sphere-velocity", "2.0")
         .setHelp("sphere-velocity", "velocity of the spheres", "VELOCITY")
-        .addOption("benchmark", "0")
+        .addOption("benchmark", "10")
         .setHelp("benchmark", "run the benchmark to compare collision detection time", "BENCHMARK")
         .parse(arguments.argc, arguments.argv);
 
@@ -178,7 +178,7 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
     /* Setup octree */
     {
         /* Octree nodes should have half width no smaller than the sphere radius */
-        _octree.emplace(Vector3{ 0 }, 1.0f, _sphereRadius);
+        _octree.emplace(Vector3{ 0 }, 1.0f, std::max(_sphereRadius, 0.1f));
         _octree->setPoints(_spheresPos);
         _octree->build();
 
