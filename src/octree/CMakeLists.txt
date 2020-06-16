@@ -53,8 +53,7 @@ add_executable(magnum-octree WIN32
     LooseOctree.h
     LooseOctree.cpp
     OctreeExample.cpp
-    ../arcball/ArcBall.cpp
-    ../motionblur/Icosphere.cpp)
+    ../arcball/ArcBall.cpp)
 target_link_libraries(magnum-octree PRIVATE
     Corrade::Main
     Magnum::Application
