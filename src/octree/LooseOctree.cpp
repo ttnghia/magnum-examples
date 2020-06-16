@@ -53,8 +53,7 @@ OctreeNode* OctreeNode::getChildNode(const std::size_t childIdx) const {
 }
 
 void OctreeNode::clearPointData() {
-    _pPointListHead = nullptr;
-    _pointCount     = 0;
+    _octreePoints.clear();
     if(!isLeaf()) {
         for(std::size_t childIdx = 0; childIdx < 8; ++childIdx) {
             _pChildren->_nodes[childIdx].clearPointData();
@@ -135,7 +134,7 @@ void OctreeNode::removeEmptyDescendants() {
         auto& pChildNode = _pChildren->_nodes[childIdx];
         pChildNode.removeEmptyDescendants();
         bAllLeaves &= pChildNode.isLeaf();
-        bAllEmpty  &= (pChildNode._pointCount == 0);
+        bAllEmpty  &= (pChildNode._octreePoints.size() == 0);
     }
 
     // Remove all 8 children nodes iff they are all leaf nodes and all empty nodes
@@ -146,11 +145,9 @@ void OctreeNode::removeEmptyDescendants() {
 }
 
 void OctreeNode::keepPoint(OctreePoint* const pPoint) {
-    pPoint->pNode   = this;
-    pPoint->bValid  = true;
-    pPoint->pNext   = _pPointListHead;
-    _pPointListHead = pPoint;
-    _pointCount    += 1u;
+    pPoint->pNode  = this;
+    pPoint->bValid = true;
+    _octreePoints.push_back(pPoint);
 }
 
 void OctreeNode::insertPoint(OctreePoint* const pPoint) {
@@ -210,8 +207,8 @@ std::size_t LooseOctree::getMaxNumPointInNodes() const {
     for(const OctreeNodeBlock* pNodeBlock : _sActiveTreeNodeBlocks) {
         for(std::size_t childIdx = 0; childIdx < 8; ++childIdx) {
             const auto& pNode = pNodeBlock->_nodes[childIdx];
-            if(count < pNode._pointCount) {
-                count = pNode._pointCount;
+            if(count < pNode._octreePoints.size()) {
+                count = pNode._octreePoints.size();
             }
         }
     }
@@ -325,26 +322,19 @@ void LooseOctree::checkValidity() {
 void LooseOctree::removeInvalidPointsFromNodes() {
     for(OctreeNodeBlock* const pNodeBlock: _sActiveTreeNodeBlocks) {
         for(std::size_t childIdx = 0; childIdx < 8; ++childIdx) {
-            OctreeNode&        pNode    = pNodeBlock->_nodes[childIdx];
-            OctreePoint* const pOldHead = pNode._pPointListHead;
-            if(!pOldHead) {
+            auto& pointList = pNodeBlock->_nodes[childIdx]._octreePoints;
+            if(pointList.size() == 0) {
                 continue;
             }
 
-            OctreePoint* pIter    = pOldHead;
-            OctreePoint* pNewHead = nullptr;
-            std::size_t  count    = 0;
-            while(pIter) {
-                const auto pNext = pIter->pNext;
-                if(pIter->bValid) {
-                    pIter->pNext = pNewHead;
-                    pNewHead     = pIter;
-                    ++count;
+            for(size_t i = 0, iend = pointList.size(); i < iend; ++i) {
+                OctreePoint* pPoint = pointList[i];
+                if(!pPoint->bValid) {
+                    pointList[i] = pointList[iend - 1];
+                    pointList.resize(iend - 1);
+                    --iend;
                 }
-                pIter = pNext;
             }
-            pNode._pPointListHead = pNewHead;
-            pNode._pointCount     = count;
         }
     }
 }

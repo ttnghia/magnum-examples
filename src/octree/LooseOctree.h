@@ -34,6 +34,7 @@
 #include <Magnum/Math/Vector3.h>
 
 #include <unordered_set>
+#include <vector>
 
 namespace Magnum { namespace Examples {
 class OctreeNode;
@@ -93,11 +94,11 @@ public:
     /* Get a child node (child idx from 0 to 7) */
     OctreeNode* getChildNode(const std::size_t childIdx) const;
 
-    /* Return the head of the point list in the node */
-    OctreePoint* getPointList() const { return _pPointListHead; }
+    /* Return the point list in the current node */
+    std::vector<OctreePoint*> getPointList() const { return _octreePoints; }
 
-    /* Get the number of points in this node */
-    std::size_t getPointCount() const { return _pointCount; }
+    /* Return the number of points holding at this node */
+    std::size_t getPointCount() const { return _octreePoints.size(); }
 
     /*
      * Recursively clear octree point data (linked list and counter)
@@ -191,11 +192,8 @@ private:
     std::size_t      _maxDepth;            /* the maximum depth level possible */
     bool             _bIsLeaf;
 
-    /* Head of the link list storing octree data points */
-    OctreePoint* _pPointListHead { nullptr };
-
-    /* Count the number of points stored in this node */
-    std::size_t _pointCount { 0 };
+    /* Store all octree points holding at this node */
+    std::vector<OctreePoint*> _octreePoints;
 };
 
 /*

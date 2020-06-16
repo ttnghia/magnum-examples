@@ -345,9 +345,9 @@ void OctreeExample::checkCollisionWithSubTree(const OctreeNode* const pNode, std
         return;
     }
 
-    const OctreePoint* pIter = pNode->getPointList();
-    while(pIter) {
-        const std::size_t j = pIter->idx;
+    const auto& pointList = pNode->getPointList();
+    for(const auto& point: pointList) {
+        const std::size_t j = point->idx;
         if(j != i) {
             const Vector3 qpos      = _spheresPos[j];
             const Vector3 qvel      = _spheresVel[j];
@@ -361,7 +361,6 @@ void OctreeExample::checkCollisionWithSubTree(const OctreeNode* const pNode, std
                 _spheresVel[i] = (_spheresVel[i] - vNormal).normalized();
             }
         }
-        pIter = pIter->pNext;
     }
 }
 
