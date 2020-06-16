@@ -29,6 +29,7 @@
  */
 
 #include <Corrade/Containers/Pointer.h>
+#include <Corrade/Containers/GrowableArray.h>
 #include <Corrade/Utility/Arguments.h>
 #include <Magnum/GL/DefaultFramebuffer.h>
 #include <Magnum/GL/Renderer.h>
@@ -56,6 +57,11 @@
 using Clock = std::chrono::high_resolution_clock;
 
 namespace Magnum { namespace Examples {
+struct InstanceData {
+    Matrix4   transformationMatrix;
+    Matrix3x3 normalMatrix;
+    Color3    color;
+};
 class OctreeExample : public Platform::Application {
 public:
     explicit OctreeExample(const Arguments& arguments);
@@ -84,7 +90,9 @@ protected:
     Containers::Pointer<ArcBallCamera>               _arcballCamera;
 
     /* Render points as spheres with size */
-    Containers::Pointer<GL::Mesh>       _mesh;
+    Containers::Pointer<GL::Mesh>       _sphere;
+    Containers::Pointer<GL::Buffer>     _sphereInstanceBuffer;
+    Containers::Array<InstanceData>     _sphereInstanceData;
     Containers::Pointer<Shaders::Phong> _shader;
 
     std::vector<Vector3>   _spheresPos;
@@ -102,6 +110,26 @@ protected:
 
 using namespace Math::Literals;
 
+class ColoredDrawable : public SceneGraph::Drawable3D {
+public:
+    explicit ColoredDrawable(Object3D& object, Containers::Array<InstanceData>& instanceData,
+                             const Color3& color, const Matrix4& primitiveTransformation,
+                             SceneGraph::DrawableGroup3D& drawables) :
+        SceneGraph::Drawable3D{object, &drawables}, _instanceData(instanceData),
+        _color{color}, _primitiveTransformation{primitiveTransformation} {}
+
+private:
+    void draw(const Matrix4& transformation, SceneGraph::Camera3D&) override {
+        const Matrix4 t = transformation * _primitiveTransformation;
+        arrayAppend(_instanceData, Containers::InPlaceInit,
+                    t, t.normalMatrix(), _color);
+    }
+
+    Containers::Array<InstanceData>& _instanceData;
+    Color3  _color;
+    Matrix4 _primitiveTransformation;
+};
+
 OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application{arguments, NoCreate} {
     Utility::Arguments args;
     args.addOption("num-spheres", "100")
@@ -110,7 +138,7 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         .setHelp("sphere-radius", "radius of the spheres", "RADIUS")
         .addOption("sphere-velocity", "2.0")
         .setHelp("sphere-velocity", "velocity of the spheres", "VELOCITY")
-        .addOption("benchmark", "10")
+        .addOption("benchmark", "0")
         .setHelp("benchmark", "run the benchmark to compare collision detection time", "BENCHMARK")
         .parse(arguments.argc, arguments.argv);
 
@@ -145,9 +173,16 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
 
     /* Setup point (render as spheres) */
     {
-        _shader.emplace();
-        _mesh.emplace();
-        *_mesh = MeshTools::compile(Primitives::icosphereSolid(3));
+        _shader.emplace(Shaders::Phong::Flag::VertexColor |
+                        Shaders::Phong::Flag::InstancedTransformation);
+
+        _sphereInstanceBuffer.emplace();
+        _sphere.emplace();
+        *_sphere = MeshTools::compile(Primitives::icosphereSolid(3));
+        _sphere->addVertexBufferInstanced(*_sphereInstanceBuffer, 1, 0,
+                                          Shaders::Phong::TransformationMatrix{},
+                                          Shaders::Phong::NormalMatrix{},
+                                          Shaders::Phong::Color3{});
 
         const UnsignedInt numSpheres = args.value<UnsignedInt>("num-spheres");
         _spheresPos.resize(numSpheres);
@@ -170,8 +205,13 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
 
             /* Icosphere is already scaled by 0.1, thus we must multiply by 10 to get a unit sphere */
             _sphereRadius = args.value<Float>("sphere-radius");
-            (new Icosphere(_mesh.get(), _shader.get(), Color3{ tmpPos }, _spheres[i], _drawables.get()))
-                ->scale(Vector3{ 10.0f * _sphereRadius });
+
+            // (new Icosphere(_sphere.get(), _shader.get(), Color3{ tmpPos }, _spheres[i], _drawables.get()))
+            //     ->scale(Vector3{ 10.0f * _sphereRadius });
+
+            new ColoredDrawable{ *_spheres[i], _sphereInstanceData,
+                                 Color3{ tmpPos },
+                                 Matrix4::scaling(Vector3{ _sphereRadius }), *_drawables.get() };
         }
     }
 
@@ -221,6 +261,7 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
 
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
     GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
+    GL::Renderer::enable(GL::Renderer::Feature::PolygonOffsetFill);
 
     /* Start the timer, loop at 60 Hz max */
     setSwapInterval(1);
@@ -238,8 +279,14 @@ void OctreeExample::drawEvent() {
         updateTreeNodeBoundingBoxes();
     }
 
+    arrayResize(_sphereInstanceData, 0);
     _arcballCamera->update();
     _arcballCamera->draw(*_drawables);
+
+    _sphereInstanceBuffer->setData(_sphereInstanceData, GL::BufferUsage::DynamicDraw);
+    _sphere->setInstanceCount(_sphereInstanceData.size());
+    _shader->setProjectionMatrix(_arcballCamera->camera()->projectionMatrix());
+    _shader->draw(*_sphere);
 
     swapBuffers();
     /* Run next frame immediately */
