@@ -319,7 +319,8 @@ private:
     /* Store the free node blocks (8 nodes) that can be used right away */
     std::vector<OctreeNodeBlock*> _freeNodeBlocks;
 
-    /* Set of node blocks that are in use (node blocks that have been taken from memory pool) */
+    /* Set of node blocks that are in use (node blocks that have been taken from memory pool)
+     * Need to be a set to easily erase */
     std::unordered_set<OctreeNodeBlock*> _activeTreeNodeBlocks;
 
     std::size_t _numAllocatedNodes; /* count the total number of allocated nodes so far */

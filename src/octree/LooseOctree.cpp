@@ -359,10 +359,10 @@ void LooseOctree::deallocateMemoryPool() {
     }
 
     for(const auto pNodeBlock: _freeNodeBlocks) {
-        delete[] pNodeBlock;
+        delete pNodeBlock;
     }
     for(const auto pNodeBlock: _activeTreeNodeBlocks) {
-        delete[] pNodeBlock;
+        delete pNodeBlock;
     }
     _numAllocatedNodes = 1u; /* root node still remains */
 }
