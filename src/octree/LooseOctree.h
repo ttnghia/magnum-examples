@@ -40,24 +40,27 @@ namespace Magnum { namespace Examples {
 class OctreeNode;
 class LooseOctree;
 
-struct OctreePoint {
-    OctreePoint(const OctreePoint&) = delete;
-    OctreePoint& operator=(const OctreePoint&) = delete;
-
+class OctreePoint {
+public:
     OctreePoint() = default;
-    OctreePoint(const Vector3& position_, std::size_t idx_) : position(position_), idx(idx_) {}
+    OctreePoint(std::vector<Vector3>* points_, std::size_t idx_) :
+        _points(points_), _idx(idx_) {}
+    std::size_t getIdx() const { return _idx; }
+    Vector3 getPosition() const { return (*_points)[_idx]; }
+    OctreeNode*& getNode() { return _pNode; }
+    bool& isValid() { return _bValid; }
 
-    Vector3      position;
-    std::size_t  idx;               /* Index of the point in the original array */
-    OctreeNode*  pNode { nullptr }; /* pointer to the octree node containing this point */
-    OctreePoint* pNext { nullptr }; /* pointer to the next point in the point list of the octree node */
+private:
+    std::size_t                 _idx;               /* Index of the point in the original array */
+    OctreeNode*                 _pNode { nullptr }; /* pointer to the octree node containing this point */
+    const std::vector<Vector3>* _points;
 
     /* Flag to keep track of point validity
      * During tree update, it is true if:
      *  1) the point is still contained in the tree node that it has previously been inserted to, and
      *  2) depth of the current node reaches maxDepth
      */
-    bool bValid { true };
+    bool _bValid { true };
 };
 
 /* Forward declaration */
@@ -95,10 +98,10 @@ public:
     OctreeNode* getChildNode(const std::size_t childIdx) const;
 
     /* Return the point list in the current node */
-    std::vector<OctreePoint*> getPointList() const { return _octreePoints; }
+    std::vector<OctreePoint*> getPointList() const { return _nodePoints; }
 
     /* Return the number of points holding at this node */
-    std::size_t getPointCount() const { return _octreePoints.size(); }
+    std::size_t getPointCount() const { return _nodePoints.size(); }
 
     /*
      * Recursively clear octree point data (linked list and counter)
@@ -193,7 +196,7 @@ private:
     bool             _bIsLeaf;
 
     /* Store all octree points holding at this node */
-    std::vector<OctreePoint*> _octreePoints;
+    std::vector<OctreePoint*> _nodePoints;
 };
 
 /*
@@ -243,21 +246,14 @@ public:
     /* Completely remove all octree point data */
     void clearPoints();
 
-    /* Count the maximum number of points stored in a tree node */
-    std::size_t getMaxNumPointInNodes() const;
-
     /*
      * Set points data for the tree
      * (the points will not be populated to tree nodes until calling to build())
      */
-    void setPoints(const std::vector<Vector3>& points);
+    void addPointSet(std::vector<Vector3>& points);
 
-    /*
-     * Update points data for the tree
-     * (the point array must have the same number of points
-     *  as the array set by the setPoints() function)
-     */
-    void updatePoints(const std::vector<Vector3>& points);
+    /* Count the maximum number of points stored in a tree node */
+    std::size_t getMaxNumPointInNodes() const;
 
     /*
      * true: rebuilt the tree from scratch in every update
@@ -272,7 +268,7 @@ public:
     /* Build the tree for the first time */
     void build();
 
-    /* Update tree after data has changed (by calling to updatePoints) */
+    /* Update tree after data has changed */
     void update();
 
 private:
@@ -334,10 +330,7 @@ private:
     std::vector<OctreeNodeBlock*> _pNodeBigBlocks;
 
     /* Store pointer to the first address of the allocated octree point data */
-    OctreePoint* _octreePointsPtr { nullptr };
-
-    /* Number of points in the tree */
-    std::size_t _nPoints { 0 };
+    std::vector<OctreePoint> _octreePoints;
 
     bool _bAlwaysRebuild { false };
     bool _bCompleteBuild { false };

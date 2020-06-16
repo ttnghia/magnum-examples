@@ -53,7 +53,7 @@ OctreeNode* OctreeNode::getChildNode(const std::size_t childIdx) const {
 }
 
 void OctreeNode::clearPointData() {
-    _octreePoints.clear();
+    _nodePoints.clear();
     if(!isLeaf()) {
         for(std::size_t childIdx = 0; childIdx < 8; ++childIdx) {
             _pChildren->_nodes[childIdx].clearPointData();
@@ -134,7 +134,7 @@ void OctreeNode::removeEmptyDescendants() {
         auto& pChildNode = _pChildren->_nodes[childIdx];
         pChildNode.removeEmptyDescendants();
         bAllLeaves &= pChildNode.isLeaf();
-        bAllEmpty  &= (pChildNode._octreePoints.size() == 0);
+        bAllEmpty  &= (pChildNode._nodePoints.size() == 0);
     }
 
     // Remove all 8 children nodes iff they are all leaf nodes and all empty nodes
@@ -145,9 +145,9 @@ void OctreeNode::removeEmptyDescendants() {
 }
 
 void OctreeNode::keepPoint(OctreePoint* const pPoint) {
-    pPoint->pNode  = this;
-    pPoint->bValid = true;
-    _octreePoints.push_back(pPoint);
+    pPoint->getNode() = this;
+    pPoint->isValid() = true;
+    _nodePoints.push_back(pPoint);
 }
 
 void OctreeNode::insertPoint(OctreePoint* const pPoint) {
@@ -160,7 +160,7 @@ void OctreeNode::insertPoint(OctreePoint* const pPoint) {
     split();
 
     /* Compute the index of the child node that contains this point */
-    const Vector3 ppos     = pPoint->position;
+    const Vector3 ppos     = pPoint->getPosition();
     std::size_t   childIdx = 0;
     for(std::size_t dim = 0; dim < 3; ++dim) {
         if(_center[dim] < ppos[dim]) {
@@ -195,10 +195,21 @@ void LooseOctree::clearPoints() {
     /* Recursively clear point data */
     _pRootNode->clearPointData();
 
-    /* Deallocate memory blocks */
-    if(_octreePointsPtr != nullptr && _nPoints > 0) {
-        delete _octreePointsPtr;
-        _nPoints = 0;
+    /* Clear the main point data array */
+    _octreePoints.clear();
+}
+
+void LooseOctree::addPointSet(std::vector<Vector3>& points) {
+    clearPoints();
+    const std::size_t nPoints = points.size();
+    if(nPoints == 0) {
+        return;
+    }
+    const std::size_t oldNPoints = _octreePoints.size();
+    _octreePoints.resize(oldNPoints + nPoints);
+    for(std::size_t idx = oldNPoints; idx < oldNPoints + nPoints; ++idx) {
+        const auto pPoint = &_octreePoints[idx];
+        new(pPoint) OctreePoint(&points, idx); /* placement new */
     }
 }
 
@@ -207,37 +218,12 @@ std::size_t LooseOctree::getMaxNumPointInNodes() const {
     for(const OctreeNodeBlock* pNodeBlock : _sActiveTreeNodeBlocks) {
         for(std::size_t childIdx = 0; childIdx < 8; ++childIdx) {
             const auto& pNode = pNodeBlock->_nodes[childIdx];
-            if(count < pNode._octreePoints.size()) {
-                count = pNode._octreePoints.size();
+            if(count < pNode._nodePoints.size()) {
+                count = pNode._nodePoints.size();
             }
         }
     }
     return count;
-}
-
-void LooseOctree::setPoints(const std::vector<Vector3>& points) {
-    clearPoints();
-    _nPoints = points.size();
-    if(_nPoints == 0) {
-        return;
-    }
-    _octreePointsPtr = new OctreePoint[_nPoints];
-    for(std::size_t idx = 0; idx < _nPoints; ++idx) {
-        const auto pPoint = &_octreePointsPtr[idx];
-        new(pPoint) OctreePoint(points[idx], idx); /* placement new */
-    }
-}
-
-void LooseOctree::updatePoints(const std::vector<Vector3>& points) {
-    if(_nPoints != points.size()) {
-        Fatal{} << "Invalid points array.";
-    }
-    if(_nPoints == 0) {
-        return;
-    }
-    for(std::size_t idx = 0; idx < _nPoints; ++idx) {
-        _octreePointsPtr[idx].position = points[idx];
-    }
 }
 
 void LooseOctree::build() {
@@ -284,8 +270,8 @@ void LooseOctree::rebuild() {
 }
 
 void LooseOctree::populatePoints() {
-    for(std::size_t idx = 0; idx < _nPoints; ++idx) {
-        _pRootNode->insertPoint(&_octreePointsPtr[idx]);
+    for(auto& point : _octreePoints) {
+        _pRootNode->insertPoint(&point);
     }
 }
 
@@ -299,22 +285,21 @@ void LooseOctree::incrementalUpdate() {
 }
 
 void LooseOctree::checkValidity() {
-    for(std::size_t idx = 0; idx < _nPoints; ++idx) {
-        OctreePoint&  point = _octreePointsPtr[idx];
-        OctreeNode*   pNode = point.pNode;
-        const Vector3 ppos  = point.position;
+    for(OctreePoint& point : _octreePoints) {
+        OctreeNode*   pNode = point.getNode();
+        const Vector3 ppos  = point.getPosition();
         if(!pNode->looselyContains(ppos) && pNode != _pRootNode) {
             /* Go up, find the node tightly containing it (or stop if reached root node) */
             while(pNode != _pRootNode) {
                 pNode = pNode->_pParent;
                 if(pNode->contains(ppos) || pNode == _pRootNode) {
-                    point.bValid = false;
-                    point.pNode  = pNode;
+                    point.isValid() = false;
+                    point.getNode() = pNode;
                     break;
                 }
             }
         } else {
-            point.bValid = (pNode != _pRootNode) ? true : false;
+            point.isValid() = (pNode != _pRootNode) ? true : false;
         }
     }
 }
@@ -322,14 +307,14 @@ void LooseOctree::checkValidity() {
 void LooseOctree::removeInvalidPointsFromNodes() {
     for(OctreeNodeBlock* const pNodeBlock: _sActiveTreeNodeBlocks) {
         for(std::size_t childIdx = 0; childIdx < 8; ++childIdx) {
-            auto& pointList = pNodeBlock->_nodes[childIdx]._octreePoints;
+            auto& pointList = pNodeBlock->_nodes[childIdx]._nodePoints;
             if(pointList.size() == 0) {
                 continue;
             }
 
             for(size_t i = 0, iend = pointList.size(); i < iend; ++i) {
                 OctreePoint* pPoint = pointList[i];
-                if(!pPoint->bValid) {
+                if(!pPoint->isValid()) {
                     pointList[i] = pointList[iend - 1];
                     pointList.resize(iend - 1);
                     --iend;
@@ -340,10 +325,9 @@ void LooseOctree::removeInvalidPointsFromNodes() {
 }
 
 void LooseOctree::reinsertInvalidPoints() {
-    for(std::size_t idx = 0; idx < _nPoints; ++idx) {
-        const auto point = &_octreePointsPtr[idx];
-        if(!point->bValid) {
-            _pRootNode->insertPoint(point);
+    for(OctreePoint& point : _octreePoints) {
+        if(!point.isValid()) {
+            _pRootNode->insertPoint(&point);
         }
     }
 }

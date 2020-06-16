@@ -216,7 +216,7 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         _octree.emplace(Vector3{ 0 }, 1.0f, std::max(_sphereRadius, 0.1f));
 
         Clock::time_point startTime = Clock::now();
-        _octree->setPoints(_spheresPos);
+        _octree->addPointSet(_spheresPos);
         _octree->build();
         Clock::time_point endTime = Clock::now();
         Float             elapsed = std::chrono::duration<Float, std::milli>(
@@ -277,7 +277,6 @@ void OctreeExample::drawEvent() {
     if(_bAnimation) {
         collisionDetectionAndHandlingUsingOctree();
         movePoints();
-        _octree->updatePoints(_spheresPos);
         _octree->update();
         updateTreeNodeBoundingBoxes();
     }
@@ -346,8 +345,8 @@ void OctreeExample::checkCollisionWithSubTree(const OctreeNode* const pNode, std
     }
 
     const auto& pointList = pNode->getPointList();
-    for(const auto& point: pointList) {
-        const std::size_t j = point->idx;
+    for(const OctreePoint* const point: pointList) {
+        const std::size_t j = point->getIdx();
         if(j != i) {
             const Vector3 qpos      = _spheresPos[j];
             const Vector3 qvel      = _spheresVel[j];
