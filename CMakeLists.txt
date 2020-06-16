@@ -98,3 +98,6 @@ if(NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY AND NOT DEFINED CMAKE_LIBRARY_OUTP
 endif()
 
 add_subdirectory(src)
+
+
+include_directories(D:/Dev/Libs/MagnumIntegration/include)
