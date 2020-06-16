@@ -50,7 +50,6 @@
 
 #include "LooseOctree.h"
 #include "../arcball/ArcBallCamera.h"
-#include "../motionblur/Icosphere.h"
 #include "../fluidsimulation3d/DrawableObjects/WireframeObjects.h"
 
 #include <chrono>
@@ -102,9 +101,9 @@ protected:
     bool                   _bAnimation = true;
 
     /* Octree and boundary boxes */
-    Containers::Pointer<LooseOctree> _octree;
-    WireframeBox*                    _rootNodeBoundingBox;
-    std::vector<WireframeBox*>       _treeNodeBoundingBoxes;
+    Containers::Pointer<LooseOctree>  _octree;
+    Containers::Pointer<WireframeBox> _rootNodeBoundingBox;
+    std::vector<WireframeBox*>        _treeNodeBoundingBoxes;
     bool _bDrawBoundingBoxes = true;
 };
 
@@ -132,12 +131,12 @@ private:
 
 OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application{arguments, NoCreate} {
     Utility::Arguments args;
-    args.addOption("num-spheres", "100")
+    args.addOption("num-spheres", "20")
         .setHelp("num-spheres", "number of spheres to simulate", "SPHERES")
         .addOption("sphere-radius", "0.1")
         .setHelp("sphere-radius", "radius of the spheres", "RADIUS")
         .addOption("sphere-velocity", "2.0")
-        .setHelp("sphere-velocity", "velocity of the spheres", "VELOCITY")
+        .setHelp("sphere-velocity", "velocity magnitude of the spheres", "VELOCITY")
         .addOption("benchmark", "0")
         .setHelp("benchmark", "run the benchmark to compare collision detection time", "BENCHMARK")
         .parse(arguments.argc, arguments.argv);
@@ -223,7 +222,7 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         _octree->build();
 
         /* Add a box for drawing the root node with a different color */
-        _rootNodeBoundingBox = new WireframeBox(_scene.get(), _drawables.get());
+        _rootNodeBoundingBox.emplace(_scene.get(), _drawables.get());
         _rootNodeBoundingBox->setTransformation(
             Matrix4::translation(_octree->getRootNode()->getCenter()) *
             Matrix4::scaling(Vector3{ _octree->getRootNode()->getHalfWidth()*1.001f })
