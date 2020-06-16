@@ -89,21 +89,21 @@ protected:
     Containers::Pointer<ArcBallCamera>               _arcballCamera;
 
     /* Render points as spheres with size */
-    Containers::Pointer<GL::Mesh>       _sphere;
+    Containers::Pointer<GL::Mesh>       _sphereMesh;
     Containers::Pointer<GL::Buffer>     _sphereInstanceBuffer;
     Containers::Array<InstanceData>     _sphereInstanceData;
     Containers::Pointer<Shaders::Phong> _shader;
 
-    std::vector<Vector3>   _spheresPos;
-    std::vector<Vector3>   _spheresVel;
-    std::vector<Object3D*> _spheres;
-    Float                  _sphereRadius;
-    bool                   _bAnimation = true;
+    std::vector<Vector3> _spheresPos;
+    std::vector<Vector3> _spheresVel;
+    std::vector<Containers::Pointer<Object3D>> _sphereObjs;
+    Float _sphereRadius;
+    bool  _bAnimation = true;
 
     /* Octree and boundary boxes */
-    Containers::Pointer<LooseOctree>  _octree;
-    Containers::Pointer<WireframeBox> _rootNodeBoundingBox;
-    std::vector<WireframeBox*>        _treeNodeBoundingBoxes;
+    Containers::Pointer<LooseOctree>               _octree;
+    Containers::Pointer<WireframeBox>              _rootNodeBoundingBox;
+    std::vector<Containers::Pointer<WireframeBox>> _treeNodeBoundingBoxes;
     bool _bDrawBoundingBoxes = true;
 };
 
@@ -170,23 +170,12 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         _arcballCamera->setLagging(0.85f);
     }
 
-    /* Setup point (render as spheres) */
+    /* Setup points (render as spheres) */
     {
-        _shader.emplace(Shaders::Phong::Flag::VertexColor |
-                        Shaders::Phong::Flag::InstancedTransformation);
-
-        _sphereInstanceBuffer.emplace();
-        _sphere.emplace();
-        *_sphere = MeshTools::compile(Primitives::icosphereSolid(3));
-        _sphere->addVertexBufferInstanced(*_sphereInstanceBuffer, 1, 0,
-                                          Shaders::Phong::TransformationMatrix{},
-                                          Shaders::Phong::NormalMatrix{},
-                                          Shaders::Phong::Color3{});
-
         const UnsignedInt numSpheres = args.value<UnsignedInt>("num-spheres");
         _spheresPos.resize(numSpheres);
         _spheresVel.resize(numSpheres);
-        _spheres.resize(numSpheres);
+        _sphereObjs.resize(numSpheres);
 
         for(std::size_t i = 0; i < numSpheres; ++i) {
             const Vector3 tmpPos{ std::rand() / Float(RAND_MAX),
@@ -197,29 +186,42 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
                                   std::rand() / Float(RAND_MAX) };
             const Vector3 pos = tmpPos * 2 - Vector3{ 1 };
             const Vector3 vel = (tmpVel * 2 - Vector3{ 1 }).normalized();
-            _spheres[i] = new Object3D(_scene.get());
-            _spheres[i]->setTransformation(Matrix4::translation(pos));
+            _sphereObjs[i].emplace(_scene.get());
+            _sphereObjs[i]->setTransformation(Matrix4::translation(pos));
             _spheresPos[i] = pos;
             _spheresVel[i] = vel * args.value<Float>("sphere-velocity");
 
-            /* Icosphere is already scaled by 0.1, thus we must multiply by 10 to get a unit sphere */
             _sphereRadius = args.value<Float>("sphere-radius");
-
-            // (new Icosphere(_sphere.get(), _shader.get(), Color3{ tmpPos }, _spheres[i], _drawables.get()))
-            //     ->scale(Vector3{ 10.0f * _sphereRadius });
-
-            new ColoredDrawable{ *_spheres[i], _sphereInstanceData,
+            new ColoredDrawable{ *_sphereObjs[i], _sphereInstanceData,
                                  Color3{ tmpPos },
                                  Matrix4::scaling(Vector3{ _sphereRadius }), *_drawables.get() };
         }
+
+        _shader.emplace(Shaders::Phong::Flag::VertexColor |
+                        Shaders::Phong::Flag::InstancedTransformation);
+
+        _sphereInstanceBuffer.emplace();
+        _sphereMesh.emplace();
+        *_sphereMesh = MeshTools::compile(Primitives::icosphereSolid(3));
+        _sphereMesh->addVertexBufferInstanced(*_sphereInstanceBuffer, 1, 0,
+                                              Shaders::Phong::TransformationMatrix{},
+                                              Shaders::Phong::NormalMatrix{},
+                                              Shaders::Phong::Color3{});
+        _sphereMesh->setInstanceCount(_sphereObjs.size());
     }
 
     /* Setup octree */
     {
         /* Octree nodes should have half width no smaller than the sphere radius */
         _octree.emplace(Vector3{ 0 }, 1.0f, std::max(_sphereRadius, 0.1f));
+
+        Clock::time_point startTime = Clock::now();
         _octree->setPoints(_spheresPos);
         _octree->build();
+        Clock::time_point endTime = Clock::now();
+        Float             elapsed = std::chrono::duration<Float, std::milli>(
+            endTime - startTime).count();
+        Debug{} << "Build Octree:" << elapsed << "ms";
 
         /* Add a box for drawing the root node with a different color */
         _rootNodeBoundingBox.emplace(_scene.get(), _drawables.get());
@@ -233,18 +235,18 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
 
         if(args.value<std::size_t>("benchmark")) {
             const std::size_t numTest = args.value<std::size_t>("benchmark");
-            Debug{} << "Running benchmark for"
-                    << _spheres.size() << "spheres,"
+            Debug{} << "Running collision detection benchmark for"
+                    << _sphereObjs.size() << "spheres,"
                     << numTest << "iterations";
 
-            Clock::time_point startTime = Clock::now();
+            startTime = Clock::now();
             for(size_t i = 0; i < numTest; ++i) {
                 collisionDetectionAndHandlingBruteForce();
             }
-            Clock::time_point endTime  = Clock::now();
-            Float             elapsed1 = std::chrono::duration<Float, std::milli>(
+            endTime = Clock::now();
+            Float elapsed1 = std::chrono::duration<Float, std::milli>(
                 endTime - startTime).count();
-            Debug{} << "Brute force collision detection:" << elapsed1 / static_cast<Float>(numTest);
+            Debug{} << "Brute force collision detection:" << elapsed1 / static_cast<Float>(numTest) << "ms";
 
             startTime = Clock::now();
             for(size_t i = 0; i < numTest; ++i) {
@@ -253,8 +255,9 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
             endTime = Clock::now();
             Float elapsed2 = std::chrono::duration<Float, std::milli>(
                 endTime - startTime).count();
-            Debug{} << "Collision detection using Octree:" << elapsed2 / static_cast<Float>(numTest);
+            Debug{} << "Collision detection using Octree:" << elapsed2 / static_cast<Float>(numTest) << "ms";
             Debug{} << "Speedup:" << elapsed1 / elapsed2;
+            Debug{} << "    (speedup varies depending on number of spheres)";
         }
     }
 
@@ -278,14 +281,13 @@ void OctreeExample::drawEvent() {
         updateTreeNodeBoundingBoxes();
     }
 
-    arrayResize(_sphereInstanceData, 0);
+    arrayResize(_sphereInstanceData, 0); /* Reset instance data */
     _arcballCamera->update();
-    _arcballCamera->draw(*_drawables);
+    _arcballCamera->draw(*_drawables);   /* Draw tree node bounding boxes and fill instance data */
 
     _sphereInstanceBuffer->setData(_sphereInstanceData, GL::BufferUsage::DynamicDraw);
-    _sphere->setInstanceCount(_sphereInstanceData.size());
     _shader->setProjectionMatrix(_arcballCamera->camera()->projectionMatrix());
-    _shader->draw(*_sphere);
+    _shader->draw(*_sphereMesh);
 
     swapBuffers();
     /* Run next frame immediately */
@@ -374,7 +376,7 @@ void OctreeExample::movePoints() {
             pos[j] = Math::clamp(pos[j], -1.0f, 1.0f);
         }
         _spheresPos[i] = pos;
-        _spheres[i]->setTransformation(Matrix4::translation(pos));
+        _sphereObjs[i]->setTransformation(Matrix4::translation(pos));
     }
 }
 
