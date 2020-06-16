@@ -46,7 +46,6 @@
 #include <Magnum/SceneGraph/MatrixTransformation3D.h>
 #include <Magnum/SceneGraph/Scene.h>
 #include <Magnum/Shaders/Phong.h>
-#include <Magnum/Trade/MeshData.h>
 
 #include "LooseOctree.h"
 #include "../arcball/ArcBallCamera.h"
@@ -61,6 +60,7 @@ struct InstanceData {
     Matrix3x3 normalMatrix;
     Color3    color;
 };
+
 class OctreeExample : public Platform::Application {
 public:
     explicit OctreeExample(const Arguments& arguments);
@@ -120,8 +120,7 @@ public:
 private:
     void draw(const Matrix4& transformation, SceneGraph::Camera3D&) override {
         const Matrix4 t = transformation * _primitiveTransformation;
-        arrayAppend(_instanceData, Containers::InPlaceInit,
-                    t, t.normalMatrix(), _color);
+        arrayAppend(_instanceData, Containers::InPlaceInit, t, t.normalMatrix(), _color);
     }
 
     Containers::Array<InstanceData>& _instanceData;
@@ -177,6 +176,7 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         _spheresVel.resize(numSpheres);
         _sphereObjs.resize(numSpheres);
 
+        const Float velocityMag = args.value<Float>("sphere-velocity");
         for(std::size_t i = 0; i < numSpheres; ++i) {
             const Vector3 tmpPos{ std::rand() / Float(RAND_MAX),
                                   std::rand() / Float(RAND_MAX),
@@ -185,11 +185,11 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
                                   std::rand() / Float(RAND_MAX),
                                   std::rand() / Float(RAND_MAX) };
             const Vector3 pos = tmpPos * 2 - Vector3{ 1 };
-            const Vector3 vel = (tmpVel * 2 - Vector3{ 1 }).normalized();
+            const Vector3 vel = (tmpVel * 2 - Vector3{ 1 }).normalized() * velocityMag;
+            _spheresPos[i] = pos;
+            _spheresVel[i] = vel;
             _sphereObjs[i].emplace(_scene.get());
             _sphereObjs[i]->setTransformation(Matrix4::translation(pos));
-            _spheresPos[i] = pos;
-            _spheresVel[i] = vel * args.value<Float>("sphere-velocity");
 
             _sphereRadius = args.value<Float>("sphere-radius");
             new ColoredDrawable{ *_sphereObjs[i], _sphereInstanceData,
@@ -286,7 +286,7 @@ void OctreeExample::drawEvent() {
     _arcballCamera->draw(*_drawables);   /* Draw tree node bounding boxes and fill instance data */
 
     _sphereInstanceBuffer->setData(_sphereInstanceData, GL::BufferUsage::DynamicDraw);
-    _shader->setProjectionMatrix(_arcballCamera->camera()->projectionMatrix());
+    _shader->setProjectionMatrix(_arcballCamera->camera().projectionMatrix());
     _shader->draw(*_sphereMesh);
 
     swapBuffers();
@@ -299,17 +299,18 @@ void OctreeExample::collisionDetectionAndHandlingBruteForce() {
         const Vector3 ppos = _spheresPos[i];
         const Vector3 pvel = _spheresVel[i];
         for(std::size_t j = i + 1; j < _spheresPos.size(); ++j) {
-            const Vector3 qpos      = _spheresPos[j];
-            const Vector3 qvel      = _spheresVel[j];
-            const Vector3 velpq     = pvel - qvel;
-            const Vector3 pospq     = ppos - qpos;
-            const Float   dpq       = pospq.length();
-            const Vector3 pospqNorm = pospq / dpq;
-            const Float   vp        = Math::dot(velpq, pospqNorm);
-            if(vp < 0 && dpq < 2 * _sphereRadius) {
-                const Vector3 vNormal = vp * pospqNorm;
-                _spheresVel[i] = (_spheresVel[i] - vNormal).normalized();
-                _spheresVel[j] = (_spheresVel[j] + vNormal).normalized();
+            const Vector3 qpos  = _spheresPos[j];
+            const Vector3 qvel  = _spheresVel[j];
+            const Vector3 velpq = pvel - qvel;
+            const Vector3 pospq = ppos - qpos;
+            const Float   vp    = Math::dot(velpq, pospq);
+            if(vp < 0) {
+                const Float dpq = pospq.length();
+                if(dpq < 2 * _sphereRadius) {
+                    const Vector3 vNormal = vp * pospq / (dpq * dpq);
+                    _spheresVel[i] = (_spheresVel[i] - vNormal).normalized();
+                    _spheresVel[j] = (_spheresVel[j] + vNormal).normalized();
+                }
             }
         }
     }
@@ -340,25 +341,22 @@ void OctreeExample::checkCollisionWithSubTree(const OctreeNode* const pNode, std
         }
     }
 
-    if(pNode->getPointCount() == 0) {
-        return;
-    }
-
     const auto& pointList = pNode->getPointList();
     for(const OctreePoint* const point: pointList) {
         const std::size_t j = point->getIdx();
         if(j > i) {
-            const Vector3 qpos      = _spheresPos[j];
-            const Vector3 qvel      = _spheresVel[j];
-            const Vector3 velpq     = pvel - qvel;
-            const Vector3 pospq     = ppos - qpos;
-            const Float   dpq       = pospq.length();
-            const Vector3 pospqNorm = pospq / dpq;
-            const Float   vp        = Math::dot(velpq, pospqNorm);
-            if(vp < 0 && dpq < 2 * _sphereRadius) {
-                const Vector3 vNormal = vp * pospqNorm;
-                _spheresVel[i] = (_spheresVel[i] - vNormal).normalized();
-                _spheresVel[j] = (_spheresVel[j] + vNormal).normalized();
+            const Vector3 qpos  = _spheresPos[j];
+            const Vector3 qvel  = _spheresVel[j];
+            const Vector3 velpq = pvel - qvel;
+            const Vector3 pospq = ppos - qpos;
+            const Float   vp    = Math::dot(velpq, pospq);
+            if(vp < 0) {
+                const Float dpq = pospq.length();
+                if(dpq < 2 * _sphereRadius) {
+                    const Vector3 vNormal = vp * pospq / (dpq * dpq);
+                    _spheresVel[i] = (_spheresVel[i] - vNormal).normalized();
+                    _spheresVel[j] = (_spheresVel[j] + vNormal).normalized();
+                }
             }
         }
     }
