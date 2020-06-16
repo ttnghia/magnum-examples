@@ -204,8 +204,7 @@ private:
  * This can reduce node allocation/merging/slitting overhead
  */
 struct OctreeNodeBlock {
-    OctreeNode       _nodes[8];
-    OctreeNodeBlock* _nextBlock { nullptr }; /* pointer to the next block in the memory pool */
+    OctreeNode _nodes[8];
 };
 
 /*
@@ -263,7 +262,7 @@ public:
 
     /* Get all memory block of active nodes */
     const std::unordered_set<OctreeNodeBlock*>& getActiveTreeNodeBlocks() const
-    { return _sActiveTreeNodeBlocks; }
+    { return _activeTreeNodeBlocks; }
 
     /* Build the tree for the first time */
     void build();
@@ -309,25 +308,21 @@ private:
      */
     void deallocateMemoryPool();
 
-    const Vector3 _center;                                  /* center of the tree */
-    const Float   _halfWidth;                               /* width of the tree bounding box */
+    const Vector3 _center;        /* center of the tree */
+    const Float   _halfWidth;     /* width of the tree bounding box */
 
-    const Float _minHalfWidth;                              /* minimum width allowed for the tree nodes */
-    std::size_t _maxDepth;                                  /* max depth of the tree, which is computed based on _minWidth */
+    const Float _minHalfWidth;    /* minimum width allowed for the tree nodes */
+    std::size_t _maxDepth;        /* max depth of the tree, which is computed based on _minWidth */
 
-    OctreeNode* const _pRootNode;                           /* root node, should not be reassigned throughout the existence of the tree */
-    OctreeNodeBlock*  _pNodeBlockPoolHead      { nullptr }; /* the pool of tree nodes, storing pre - allocated nodes as a linked list */
-    std::size_t       _numAvaiableBlocksInPool { 0 };       /* count the number of nodes available in memory pool */
-    std::size_t       _numAllocatedNodes;                   /* count the total number of allocated nodes so far */
+    OctreeNode* const _pRootNode; /* root node, should not be reassigned throughout the existence of the tree */
+
+    /* Store the free node blocks (8 nodes) that can be used right away */
+    std::vector<OctreeNodeBlock*> _freeNodeBlocks;
 
     /* Set of node blocks that are in use (node blocks that have been taken from memory pool) */
-    std::unordered_set<OctreeNodeBlock*> _sActiveTreeNodeBlocks;
+    std::unordered_set<OctreeNodeBlock*> _activeTreeNodeBlocks;
 
-    /*
-     * During memory allocation for tree nodes, multiple node blocks are allocated at the same time as a big memory block
-     * This variable store the first address of such big memory block, used during memory pool deallocation
-     */
-    std::vector<OctreeNodeBlock*> _pNodeBigBlocks;
+    std::size_t _numAllocatedNodes; /* count the total number of allocated nodes so far */
 
     /* Store pointer to the first address of the allocated octree point data */
     std::vector<OctreePoint> _octreePoints;
