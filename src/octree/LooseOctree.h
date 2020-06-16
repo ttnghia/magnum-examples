@@ -84,6 +84,7 @@ public:
                         const Vector3& nodeCenter, const Float halfWidth,
                         const std::size_t depth);
 
+    /* Common properties */
     bool isLeaf() const { return _bIsLeaf; }
     const Vector3 getCenter() const { return _center; }
     Float getHalfWidth() const { return _halfWidth; }
@@ -175,19 +176,7 @@ public:
                && lower.z() < _upperBoundExtended[2];
     }
 
-    #if 0
-    // todo
-    /*
-     * Recursively update debug geometry by adding lines drawing bounding boxes of the active nodes
-     * \return True if debug lines have been added to visualize the bounding box of the current node
-     */
-    bool updateDebugGeometry();
-#endif
 private:
-    LooseOctree*     _pTree;               /* pointer to the octree */
-    OctreeNode*      _pParent;             /* pointer to the parent node */
-    OctreeNodeBlock* _pChildren;           /* pointer to a memory block containing 8 children nodes */
-
     const Vector3     _center;             /* center of this node */
     const Vector3     _lowerBound;         /* the lower corner of the node */
     const Vector3     _upperBound;         /* the upper corner of the node */
@@ -195,8 +184,12 @@ private:
     const Vector3     _upperBoundExtended; /* the extended upper corner of the node, which is 2X bigger than the exact AABB */
     const Float       _halfWidth;          /* the half width of the node */
     const std::size_t _depth;              /* depth of this node (depth > 0, depth = 1 starting at the root node) */
-    std::size_t       _maxDepth;           /* the maximum depth level possible */
-    bool              _bIsLeaf;
+
+    LooseOctree*     _pTree;               /* pointer to the octree */
+    OctreeNode*      _pParent;             /* pointer to the parent node */
+    OctreeNodeBlock* _pChildren;           /* pointer to a memory block containing 8 children nodes */
+    std::size_t      _maxDepth;            /* the maximum depth level possible */
+    bool             _bIsLeaf;
 
     /* Head of the link list storing octree data points */
     OctreePoint* _pPointListHead { nullptr };
@@ -238,12 +231,13 @@ public:
     /* Cleanup memory here */
     ~LooseOctree();
 
+    /* Common properties */
     const Vector3 getCenter() const { return _center; }
+    OctreeNode* getRootNode() const { return _pRootNode; }
     Float getHalfWidth() const { return _halfWidth; }
     Float getMinHalfWidth() const { return _minHalfWidth; }
     std::size_t getMaxDepth() const { return _maxDepth; }
     std::size_t getNumAllocatedNodes() const { return _numAllocatedNodes; }
-    OctreeNode* getRootNode() const { return _pRootNode; }
 
     /* Clear all data, but still keep allocated nodes in memory pool */
     void clear();
@@ -277,20 +271,12 @@ public:
     const std::unordered_set<OctreeNodeBlock*>& getActiveTreeNodeBlocks() const
     { return _sActiveTreeNodeBlocks; }
 
+    /* Build the tree for the first time */
     void build();
+
+    /* Update tree after data has changed (by calling to updatePoints) */
     void update();
 
-    #if 0
-    // todo
-    /*
-     * Generate the debug geometry for debug rendering (a bounding box for each node)
-     * \param maxLevel The tree will be visualized up to maxLevel levels
-     */
-    std::shared_ptr<DebugRenderGeometry> getDebugGeometry(const std::size_t maxLevel, bool bDrawNonEmptyParent = true);
-
-    /* Update the boundary lines after updated tree */
-    void updateBoundaryData();
-#endif
 private:
     /* Rebuild the tree from scratch */
     void rebuild();
@@ -357,12 +343,6 @@ private:
 
     bool _bAlwaysRebuild { false };
     bool _bCompleteBuild { false };
-
-    /* Maximum level of nodes for which the boundary lines will be generated */
-    std::size_t _maxLevelBoundaryLineGeneration;
-
-    /* Generate boundary lines for the empty inner nodes */
-    bool _bBoundaryLineForNonEmptyParent { true };
 };
 } }
 

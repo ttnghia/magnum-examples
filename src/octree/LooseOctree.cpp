@@ -55,7 +55,6 @@ OctreeNode* OctreeNode::getChildNode(const std::size_t childIdx) const {
 void OctreeNode::clearPointData() {
     _pPointListHead = nullptr;
     _pointCount     = 0;
-
     if(!isLeaf()) {
         for(std::size_t childIdx = 0; childIdx < 8; ++childIdx) {
             _pChildren->_nodes[childIdx].clearPointData();
@@ -168,95 +167,11 @@ void OctreeNode::insertPoint(OctreePoint* const pPoint) {
     std::size_t   childIdx = 0;
     for(std::size_t dim = 0; dim < 3; ++dim) {
         if(_center[dim] < ppos[dim]) {
-            childIdx |= (1 << dim);
+            childIdx |= (1ull << dim);
         }
     }
     _pChildren->_nodes[childIdx].insertPoint(pPoint);
 }
-
-#if 0
-// todo
-bool OctreeNode::updateDebugGeometry() {
-    if(_depth > _pTree->_maxLevelBoundaryLineGeneration) {
-        return false;
-    }
-
-    int     renderCount = 0;
-    Vector3 vertices[8];
-    bool    rendered[8] { false, false, false, false,
-                          false, false, false, false };
-
-    // Also call add lines recursively
-    for(std::size_t i = 0; i < 8; i++) {
-        vertices[i]     = _center;
-        vertices[i][0] += (i & 1) ? _halfWidth : -_halfWidth;
-        vertices[i][1] += (i & 2) ? _halfWidth : -_halfWidth;
-        vertices[i][2] += (i & 4) ? _halfWidth : -_halfWidth;
-
-        if(!isLeaf()) {
-            rendered[i] = _pChildren->_nodes[i].updateDebugGeometry();
-            if(rendered[i]) {
-                ++renderCount;
-            }
-        }
-    }
-
-    //--------------------------------------------------------
-    //
-    //           6-------7
-    //          /|      /|
-    //         2-+-----3 |
-    //         | |     | |   y
-    //         | 4-----+-5   | z
-    //         |/      |/    |/
-    //         0-------1     +--x
-    //
-    //         0   =>   0, 0, 0
-    //         1   =>   0, 0, 1
-    //         2   =>   0, 1, 0
-    //         3   =>   0, 1, 1
-    //         4   =>   1, 0, 0
-    //         5   =>   1, 0, 1
-    //         6   =>   1, 1, 0
-    //         7   =>   1, 1, 1
-    //
-    //--------------------------------------------------------
-
-    // No primitive in this node
-    if(_pointCount[OctreePrimitiveType::Point] == 0
-       && _pointCount[OctreePrimitiveType::Triangle] == 0
-       && _pointCount[OctreePrimitiveType::AnalyticalGeometry] == 0) {
-        if(!_pTree->_bBoundaryLineForNonEmptyParent) {
-            return (renderCount > 0);
-        }
-
-        if(renderCount == 0                 // Children did not render
-           && _pTree->_pRootNode != this) { // Not root node, and no data in this node)
-            return false;
-        }
-    }
-
-    if(renderCount < 8) { // If renderCount == 8 then no need to render this node
-        const auto& debugLines = _pTree->m_DebugGeometry;
-        for(int i = 0; i < 8; ++i) {
-            if((i & 1) && (!rendered[i] || !rendered[i - 1])) {
-                debugLines->appendVertex(vertices[i]);
-                debugLines->appendVertex(vertices[i - 1]);
-            }
-            if((i & 2) && (!rendered[i] || !rendered[i - 2])) {
-                debugLines->appendVertex(vertices[i]);
-                debugLines->appendVertex(vertices[i - 2]);
-            }
-            if((i & 4) && (!rendered[i] || !rendered[i - 4])) {
-                debugLines->appendVertex(vertices[i]);
-                debugLines->appendVertex(vertices[i - 4]);
-            }
-        }
-    }
-    return true;
-}
-
-#endif
 
 LooseOctree::~LooseOctree() {
     /* Firstly clear data recursively */
@@ -346,11 +261,11 @@ void LooseOctree::build() {
     _bCompleteBuild = true;
 
     Debug() << "Octree info:";
-    Debug() << "       center:" << _center;
-    Debug() << "       half width:" << _halfWidth;
-    Debug() << "       min half width:" << _minHalfWidth;
-    Debug() << "       max depth:" << _maxDepth;
-    Debug() << "       max tree nodes:" << maxNumTreeNodes;
+    Debug() << "       Center:" << _center;
+    Debug() << "       Half width:" << _halfWidth;
+    Debug() << "       Min half width:" << _minHalfWidth;
+    Debug() << "       Max depth:" << _maxDepth;
+    Debug() << "       Max tree nodes:" << maxNumTreeNodes;
 }
 
 void LooseOctree::update() {
@@ -483,32 +398,4 @@ void LooseOctree::deallocateMemoryPool() {
     _numAllocatedNodes       = 1u; /* root node still remains */
     _numAvaiableBlocksInPool = 0u;
 }
-
-#if 0
-std::shared_ptr<DebugRenderGeometry>
-Octree::getDebugGeometry(const std::size_t maxLevel, bool bDrawNonEmptyParent /*= true*/) {
-    m_MaxLevelDebugRender = maxLevel;
-    m_bDrawNonEmptyParent = bDrawNonEmptyParent;
-    if(!m_DebugGeometry) {
-        m_DebugGeometry.reset();
-    }
-
-    // Create debug geometry and set default rendering mateirial
-    m_DebugGeometry = std::make_shared<DebugRenderLines>("OctreeDebugRendering");
-
-    // Update debug rendering data (if any)
-    _pRootNode->updateDebugGeometry();
-    m_DebugGeometry->setDataModified(true);
-
-    return std::static_pointer_cast<DebugRenderGeometry>(m_DebugGeometry);
-}
-
-void LooseOctree::updateDebugGeometry() {
-    LOG_IF(FATAL, (!m_DebugGeometry)) << "Debug geometry has not been created";
-    m_DebugGeometry->clear();
-    _pRootNode->updateDebugGeometry();
-    m_DebugGeometry->setDataModified(true);
-}
-
-#endif
 } }
