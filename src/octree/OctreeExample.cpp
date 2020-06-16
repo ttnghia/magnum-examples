@@ -135,7 +135,7 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         .setHelp("num-spheres", "number of spheres to simulate", "SPHERES")
         .addOption("sphere-radius", "0.1")
         .setHelp("sphere-radius", "radius of the spheres", "RADIUS")
-        .addOption("sphere-velocity", "2.0")
+        .addOption("sphere-velocity", "1.0")
         .setHelp("sphere-velocity", "velocity magnitude of the spheres", "VELOCITY")
         .addOption("benchmark", "0")
         .setHelp("benchmark", "run the benchmark to compare collision detection time", "BENCHMARK")
@@ -222,6 +222,7 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         Float             elapsed = std::chrono::duration<Float, std::milli>(
             endTime - startTime).count();
         Debug{} << "Build Octree:" << elapsed << "ms";
+        Debug{} << "Max number of points per node:" << _octree->getMaxNumPointInNodes();
 
         /* Add a box for drawing the root node with a different color */
         _rootNodeBoundingBox.emplace(_scene.get(), _drawables.get());
@@ -365,7 +366,7 @@ void OctreeExample::checkCollisionWithSubTree(const OctreeNode* const pNode, std
 }
 
 void OctreeExample::movePoints() {
-    static constexpr Float dt{ 1.0f / 300.0f };
+    static constexpr Float dt{ 1.0f / 120.0f };
 
     for(std::size_t i = 0; i < _spheresPos.size(); ++i) {
         Vector3 pos = _spheresPos[i] + _spheresVel[i] * dt;
@@ -449,9 +450,7 @@ void OctreeExample::mousePressEvent(MouseEvent& event) {
     /* Enable mouse capture so the mouse can drag outside of the window */
     /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
     SDL_CaptureMouse(SDL_TRUE);
-
     _arcballCamera->initTransformation(event.position());
-
     event.setAccepted();
     redraw(); /* camera has changed, redraw! */
 }
@@ -464,11 +463,9 @@ void OctreeExample::mouseReleaseEvent(MouseEvent&) {
 
 void OctreeExample::mouseMoveEvent(MouseMoveEvent& event) {
     if(!event.buttons()) { return; }
-
     if(event.modifiers() & MouseMoveEvent::Modifier::Shift) {
         _arcballCamera->translate(event.position());
     } else { _arcballCamera->rotate(event.position()); }
-
     event.setAccepted();
     redraw(); /* camera has changed, redraw! */
 }
@@ -476,9 +473,7 @@ void OctreeExample::mouseMoveEvent(MouseMoveEvent& event) {
 void OctreeExample::mouseScrollEvent(MouseScrollEvent& event) {
     const Float delta = event.offset().y();
     if(Math::abs(delta) < 1.0e-2f) { return; }
-
     _arcballCamera->zoom(delta);
-
     event.setAccepted();
     redraw(); /* camera has changed, redraw! */
 }
