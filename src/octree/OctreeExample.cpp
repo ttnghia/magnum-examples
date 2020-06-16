@@ -222,6 +222,7 @@ OctreeExample::OctreeExample(const Arguments& arguments) : Platform::Application
         Float             elapsed = std::chrono::duration<Float, std::milli>(
             endTime - startTime).count();
         Debug{} << "Build Octree:" << elapsed << "ms";
+        Debug{} << "Allocated nodes:" << _octree->getNumAllocatedNodes();
         Debug{} << "Max number of points per node:" << _octree->getMaxNumPointInNodes();
 
         /* Add a box for drawing the root node with a different color */

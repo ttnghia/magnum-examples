@@ -37,23 +37,24 @@
 #include <vector>
 
 namespace Magnum { namespace Examples {
+/* Forward declaration */
 class OctreeNode;
 class LooseOctree;
+struct OctreeNodeBlock;
 
 class OctreePoint {
 public:
     OctreePoint() = default;
-    OctreePoint(std::vector<Vector3>* points_, std::size_t idx_) :
-        _points(points_), _idx(idx_) {}
+    OctreePoint(std::vector<Vector3>* points_, std::size_t idx_) : _points(points_), _idx(idx_) {}
     std::size_t getIdx() const { return _idx; }
     Vector3 getPosition() const { return (*_points)[_idx]; }
     OctreeNode*& getNode() { return _pNode; }
     bool& isValid() { return _bValid; }
 
 private:
-    std::size_t                 _idx;               /* Index of the point in the original array */
+    std::size_t                 _idx;               /* index of this point in the original point set */
+    const std::vector<Vector3>* _points;            /* the original point set */
     OctreeNode*                 _pNode { nullptr }; /* pointer to the octree node containing this point */
-    const std::vector<Vector3>* _points;
 
     /* Flag to keep track of point validity
      * During tree update, it is true if:
@@ -62,9 +63,6 @@ private:
      */
     bool _bValid { true };
 };
-
-/* Forward declaration */
-struct OctreeNodeBlock;
 
 class OctreeNode {
     friend class LooseOctree;
@@ -98,16 +96,16 @@ public:
     OctreeNode* getChildNode(const std::size_t childIdx) const;
 
     /* Return the point list in the current node */
-    std::vector<OctreePoint*> getPointList() const { return _nodePoints; }
+    const std::vector<OctreePoint*>& getPointList() const { return _nodePoints; }
 
     /* Return the number of points holding at this node */
     std::size_t getPointCount() const { return _nodePoints.size(); }
 
     /*
-     * Recursively clear octree point data (linked list and counter)
-     * Note that the point data still exists in the main octree list, they are just removed from the node
+     * Recursively remove point list from the subtree
+     * The point data still exists in the main octree list
      */
-    void clearPointData();
+    void removePointFromSubTree();
 
     /* Split node (requesting 8 children nodes from memory pool) */
     void split();
@@ -262,7 +260,7 @@ public:
 
     /* Get all memory block of active nodes */
     const std::unordered_set<OctreeNodeBlock*>& getActiveTreeNodeBlocks() const
-    { return _activeTreeNodeBlocks; }
+    { return _activeNodeBlocks; }
 
     /* Build the tree for the first time */
     void build();
@@ -290,7 +288,7 @@ private:
      * For each invalid point, insert it back to the tree in a top-down manner
      * starting from the lowest ancestor node that tightly contains it (that node was found during validity check)
      */
-    void reinsertInvalidPoints();
+    void reinsertInvalidPointsToNodes();
 
     /*
      * Request a block of 8 tree nodes from memory pool (this is called only during splitting node)
@@ -301,12 +299,7 @@ private:
     /*
      * Return 8 children nodes to memory pool (this is called only during destroying descendant nodes)
      */
-    void returnChildrenToPool(OctreeNodeBlock* const pNodeBlock);
-
-    /*
-     * Deallocate all node block in memory pool, called only during octree destructor
-     */
-    void deallocateMemoryPool();
+    void returnChildrenToPool(OctreeNodeBlock*& pNodeBlock);
 
     const Vector3 _center;        /* center of the tree */
     const Float   _halfWidth;     /* width of the tree bounding box */
@@ -321,7 +314,7 @@ private:
 
     /* Set of node blocks that are in use (node blocks that have been taken from memory pool)
      * Need to be a set to easily erase */
-    std::unordered_set<OctreeNodeBlock*> _activeTreeNodeBlocks;
+    std::unordered_set<OctreeNodeBlock*> _activeNodeBlocks;
 
     std::size_t _numAllocatedNodes; /* count the total number of allocated nodes so far */
 

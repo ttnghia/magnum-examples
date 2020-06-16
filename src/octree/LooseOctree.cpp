@@ -52,11 +52,11 @@ OctreeNode* OctreeNode::getChildNode(const std::size_t childIdx) const {
     return &_pChildren->_nodes[childIdx];
 }
 
-void OctreeNode::clearPointData() {
+void OctreeNode::removePointFromSubTree() {
     _nodePoints.clear();
     if(!isLeaf()) {
         for(std::size_t childIdx = 0; childIdx < 8; ++childIdx) {
-            _pChildren->_nodes[childIdx].clearPointData();
+            _pChildren->_nodes[childIdx].removePointFromSubTree();
         }
     }
 }
@@ -113,14 +113,11 @@ void OctreeNode::removeAllDescendants() {
         return;
     }
 
-    /* Must explicitly mark as leaf node */
-    _bIsLeaf = true;
-
     for(std::size_t childIdx = 0; childIdx < 8; ++childIdx) {
-        auto& pChildNode = _pChildren->_nodes[childIdx];
-        pChildNode.removeAllDescendants();
+        _pChildren->_nodes[childIdx].removeAllDescendants();
     }
     _pTree->returnChildrenToPool(_pChildren);
+    _bIsLeaf = true;
 }
 
 void OctreeNode::removeEmptyDescendants() {
@@ -134,10 +131,10 @@ void OctreeNode::removeEmptyDescendants() {
         auto& pChildNode = _pChildren->_nodes[childIdx];
         pChildNode.removeEmptyDescendants();
         bAllLeaves &= pChildNode.isLeaf();
-        bAllEmpty  &= (pChildNode._nodePoints.size() == 0);
+        bAllEmpty  &= (pChildNode.getPointCount() == 0);
     }
 
-    // Remove all 8 children nodes iff they are all leaf nodes and all empty nodes
+    /* Remove all 8 children nodes iff they are all leaf nodes and all empty nodes */
     if(bAllEmpty && bAllLeaves) {
         _pTree->returnChildrenToPool(_pChildren);
         _bIsLeaf = true;
@@ -175,7 +172,16 @@ LooseOctree::~LooseOctree() {
     clear();
 
     /* Deallocate memory pool */
-    deallocateMemoryPool();
+    if(_numAllocatedNodes != (_freeNodeBlocks.size() + _activeNodeBlocks.size()) * 8 + 1u) {
+        Fatal{} << "Internal data corrupted, may be all nodes were not returned from tree";
+    }
+
+    for(const auto pNodeBlock: _freeNodeBlocks) {
+        delete pNodeBlock;
+    }
+    for(const auto pNodeBlock: _activeNodeBlocks) {
+        delete pNodeBlock;
+    }
 
     /* Remove root node */
     delete _pRootNode;
@@ -193,14 +199,13 @@ void LooseOctree::clear() {
 
 void LooseOctree::clearPoints() {
     /* Recursively clear point data */
-    _pRootNode->clearPointData();
+    _pRootNode->removePointFromSubTree();
 
     /* Clear the main point data array */
     _octreePoints.clear();
 }
 
 void LooseOctree::addPointSet(std::vector<Vector3>& points) {
-    clearPoints();
     const std::size_t nPoints = points.size();
     if(nPoints == 0) {
         return;
@@ -215,11 +220,11 @@ void LooseOctree::addPointSet(std::vector<Vector3>& points) {
 
 std::size_t LooseOctree::getMaxNumPointInNodes() const {
     std::size_t count { 0 };
-    for(const OctreeNodeBlock* pNodeBlock : _activeTreeNodeBlocks) {
+    for(const OctreeNodeBlock* pNodeBlock : _activeNodeBlocks) {
         for(std::size_t childIdx = 0; childIdx < 8; ++childIdx) {
             const auto& pNode = pNodeBlock->_nodes[childIdx];
-            if(count < pNode._nodePoints.size()) {
-                count = pNode._nodePoints.size();
+            if(count < pNode.getPointCount()) {
+                count = pNode.getPointCount();
             }
         }
     }
@@ -252,9 +257,7 @@ void LooseOctree::build() {
 }
 
 void LooseOctree::update() {
-    if(!_bCompleteBuild) {
-        build();
-    }
+    if(!_bCompleteBuild) { build(); }
     (!_bAlwaysRebuild) ? incrementalUpdate() : rebuild();
 }
 
@@ -263,7 +266,7 @@ void LooseOctree::rebuild() {
     _pRootNode->removeAllDescendants();
 
     /* Clear root node point data */
-    _pRootNode->clearPointData();
+    _pRootNode->removePointFromSubTree();
 
     /* Populate all points to tree nodes in a top-down manner */
     populatePoints();
@@ -278,7 +281,7 @@ void LooseOctree::populatePoints() {
 void LooseOctree::incrementalUpdate() {
     checkValidity();
     removeInvalidPointsFromNodes();
-    reinsertInvalidPoints();
+    reinsertInvalidPointsToNodes();
 
     /* Recursively remove all empty nodes, returning them to memory pool for recycling */
     _pRootNode->removeEmptyDescendants();
@@ -289,7 +292,7 @@ void LooseOctree::checkValidity() {
         OctreeNode*   pNode = point.getNode();
         const Vector3 ppos  = point.getPosition();
         if(!pNode->looselyContains(ppos) && pNode != _pRootNode) {
-            /* Go up, find the node tightly containing it (or stop if reached root node) */
+            /* Go up, find the node tightly containing it (or stop if reached the root node) */
             while(pNode != _pRootNode) {
                 pNode = pNode->_pParent;
                 if(pNode->contains(ppos) || pNode == _pRootNode) {
@@ -305,13 +308,9 @@ void LooseOctree::checkValidity() {
 }
 
 void LooseOctree::removeInvalidPointsFromNodes() {
-    for(OctreeNodeBlock* const pNodeBlock: _activeTreeNodeBlocks) {
+    for(OctreeNodeBlock* const pNodeBlock: _activeNodeBlocks) {
         for(std::size_t childIdx = 0; childIdx < 8; ++childIdx) {
             auto& pointList = pNodeBlock->_nodes[childIdx]._nodePoints;
-            if(pointList.size() == 0) {
-                continue;
-            }
-
             for(size_t i = 0, iend = pointList.size(); i < iend; ++i) {
                 OctreePoint* pPoint = pointList[i];
                 if(!pPoint->isValid()) {
@@ -324,7 +323,7 @@ void LooseOctree::removeInvalidPointsFromNodes() {
     }
 }
 
-void LooseOctree::reinsertInvalidPoints() {
+void LooseOctree::reinsertInvalidPointsToNodes() {
     for(OctreePoint& point : _octreePoints) {
         if(!point.isValid()) {
             _pRootNode->insertPoint(&point);
@@ -334,36 +333,24 @@ void LooseOctree::reinsertInvalidPoints() {
 
 OctreeNodeBlock* LooseOctree::requestChildrenFromPool() {
     if(_freeNodeBlocks.size() == 0) {
-        /* Allocate 64 more node blocks and put to the pool */
-        for(std::size_t i = 0; i < 64ull; ++i) {
+        /* Allocate more node blocks and put to the pool */
+        static constexpr std::size_t numAllocations { 16 };
+        for(std::size_t i = 0; i < numAllocations; ++i) {
             const auto pNodeBlock = new OctreeNodeBlock;
             _freeNodeBlocks.push_back(pNodeBlock);
         }
-        _numAllocatedNodes += 64 * 8;
+        _numAllocatedNodes += numAllocations * 8;
     }
 
     const auto pNodeBlock = _freeNodeBlocks.back();
     _freeNodeBlocks.pop_back();
-    _activeTreeNodeBlocks.insert(pNodeBlock);
+    _activeNodeBlocks.insert(pNodeBlock);
     return pNodeBlock;
 }
 
-void LooseOctree::returnChildrenToPool(OctreeNodeBlock* const pNodeBlock) {
+void LooseOctree::returnChildrenToPool(OctreeNodeBlock*& pNodeBlock) {
     _freeNodeBlocks.push_back(pNodeBlock);
-    _activeTreeNodeBlocks.erase(pNodeBlock);
-}
-
-void LooseOctree::deallocateMemoryPool() {
-    if(_numAllocatedNodes != (_freeNodeBlocks.size() + _activeTreeNodeBlocks.size()) * 8 + 1u) {
-        Fatal{} << "Internal data corrupted, may be all nodes were not returned from tree";
-    }
-
-    for(const auto pNodeBlock: _freeNodeBlocks) {
-        delete pNodeBlock;
-    }
-    for(const auto pNodeBlock: _activeTreeNodeBlocks) {
-        delete pNodeBlock;
-    }
-    _numAllocatedNodes = 1u; /* root node still remains */
+    _activeNodeBlocks.erase(pNodeBlock);
+    pNodeBlock = nullptr;
 }
 } }
