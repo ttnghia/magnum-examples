@@ -46,22 +46,22 @@ public:
     Constraint(Type type) : m_type(type) {}
     virtual ~Constraint() = default;
     Type type() const { return m_type; }
-    virtual Float evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) const = 0;
-    virtual void  getWLaplacianContribution(Containers::Array<Tripletf>& laplacian_1d_triplets) const = 0;
+    virtual Float evaluateEnergyAndGradient(const EgVecXf& x, EgVecXf& gradient) const = 0;
+    virtual void  getWLaplacianContribution(Containers::Array<EgTripletf>& laplacian_1d_triplets) const = 0;
 protected:
     Type m_type;
 };
 
 class AttachmentConstraint : public Constraint {
 public:
-    AttachmentConstraint(UnsignedInt vIdx, const Vec3f& fixedPos, Float stiffness) :
+    AttachmentConstraint(UnsignedInt vIdx, const EgVec3f& fixedPos, Float stiffness) :
         Constraint(Constraint::Type::Attachment), m_vIdx(vIdx), m_fixedPos(fixedPos), m_stiffness(stiffness) {}
     void setStiffness(Float stiffness) { m_stiffness = stiffness; }
-    virtual Float evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) const;
-    virtual void  getWLaplacianContribution(Containers::Array<Tripletf>& triplets) const;
+    virtual Float evaluateEnergyAndGradient(const EgVecXf& x, EgVecXf& gradient) const;
+    virtual void  getWLaplacianContribution(Containers::Array<EgTripletf>& triplets) const;
 private:
     UnsignedInt m_vIdx;
-    Vec3f       m_fixedPos;
+    EgVec3f       m_fixedPos;
     Float       m_stiffness { 0 };
 };
 
@@ -72,17 +72,17 @@ public:
         StVK,
         NeoHookeanExtendLog
     };
-    FEMConstraint(const Vector4ui& vIDs, const VecXf& x);
+    FEMConstraint(const Vector4ui& vIDs, const EgVecXf& x);
     void  setFEMMaterial(Material type, Float mu, Float lambda, Float kappa);
-    Float getMassContribution(VecXf& m, VecXf& m_1d);
-    Float computeStressAndEnergyDensity(const Mat3f& F, Mat3f& P) const;
+    Float getMassContribution(EgVecXf& m, EgVecXf& m_1d);
+    Float computeStressAndEnergyDensity(const EgMat3f& F, EgMat3f& P) const;
     void  computeLaplacianWeight();
 
-    virtual Float evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) const override;
-    virtual void  getWLaplacianContribution(Containers::Array<Tripletf>& laplacian) const override;
+    virtual Float evaluateEnergyAndGradient(const EgVecXf& x, EgVecXf& gradient) const override;
+    virtual void  getWLaplacianContribution(Containers::Array<EgTripletf>& laplacian) const override;
 private:
-    Mat3f getMatrixDs(const VecXf& x) const;
-    void  singularValueDecomp(Mat3f& U, Vec3f& SIGMA, Mat3f& V, const Mat3f& A, bool signed_svd = true) const;
+    EgMat3f getMatrixDs(const EgVecXf& x) const;
+    void  singularValueDecomp(EgMat3f& U, EgVec3f& SIGMA, EgMat3f& V, const EgMat3f& A, bool signed_svd = true) const;
     Material    m_material;
     Float       m_mu;
     Float       m_lambda;
@@ -90,11 +90,11 @@ private:
     const Float m_neohookean_clamp_value { 0.1f };
 public:                   /* public access for sag-free initializer */
     Vector4ui m_vIDs;
-    Mat3f     m_Dm;       /* [x0-x3|x1-x3|x2-x3]       */
-    Mat3f     m_Dm_inv;   /* inverse of m_Dm           */
-    Mat3f     m_Dm_inv_T; /* inverse transpose of m_Dm */
-    Mat3x4f   m_G;        /* Q = m_Dr^(-T) * IND;      */
-    Mat4f     m_L;
+    EgMat3f     m_Dm;       /* [x0-x3|x1-x3|x2-x3]       */
+    EgMat3f     m_Dm_inv;   /* inverse of m_Dm           */
+    EgMat3f     m_Dm_inv_T; /* inverse transpose of m_Dm */
+    EgMat3x4f   m_G;        /* Q = m_Dr^(-T) * IND;      */
+    EgMat4f     m_L;
     Float     m_w;        /* 1/6 det(Dm);              */
 };
 

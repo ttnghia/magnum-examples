@@ -335,13 +335,13 @@ void FEMSimulationExample::setupScene(Int sceneId) {
         /* Find the maximum x value */
         Float max_x = -1e10f;
         for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
-            const Vec3f& v = _mesh->m_positions_t0.block3(idx);
+            const EgVec3f& v = _mesh->m_positions_t0.block3(idx);
             if(max_x < v.x()) { max_x = v.x(); }
         }
 
         /* Fix the vertices that have x ~~ max_x */
         for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
-            const Vec3f& v = _mesh->m_positions_t0.block3(idx);
+            const EgVec3f& v = _mesh->m_positions_t0.block3(idx);
             if(std::abs(max_x - v.x()) < 1e-4f) {
                 arrayAppend(_mesh->m_fixedVerts, idx);
             }
@@ -356,17 +356,17 @@ void FEMSimulationExample::setupScene(Int sceneId) {
         /* Find the maximum y value */
         Float max_y = -1e10f;
         for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
-            const Vec3f& v = _mesh->m_positions_t0.block3(idx);
+            const EgVec3f& v = _mesh->m_positions_t0.block3(idx);
             if(max_y < v.y()) { max_y = v.y(); }
         }
         for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
-            const Vec3f& v = _mesh->m_positions_t0.block3(idx);
+            const EgVec3f& v = _mesh->m_positions_t0.block3(idx);
             if(max_y < v.y()) { max_y = v.y(); }
         }
 
         /* Fix the vertices that have y ~~ max_y */
         for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
-            const Vec3f& v = _mesh->m_positions_t0.block3(idx);
+            const EgVec3f& v = _mesh->m_positions_t0.block3(idx);
             if(std::abs(max_y - v.y()) < 1e-1f) {
                 arrayAppend(_mesh->m_fixedVerts, idx);
             }

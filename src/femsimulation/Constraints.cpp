@@ -34,19 +34,19 @@
 #include <Eigen/SVD>
 
 namespace Magnum { namespace Examples {
-Float AttachmentConstraint::evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) const {
-    const Vec3f d = x.block3(m_vIdx) - m_fixedPos;
-    const Vec3f g = m_stiffness * d;
+Float AttachmentConstraint::evaluateEnergyAndGradient(const EgVecXf& x, EgVecXf& gradient) const {
+    const EgVec3f d = x.block3(m_vIdx) - m_fixedPos;
+    const EgVec3f g = m_stiffness * d;
     gradient.block3(m_vIdx) += g;
     const Float energy = 0.5f * m_stiffness * d.squaredNorm();
     return energy;
 }
 
-void AttachmentConstraint::getWLaplacianContribution(Containers::Array<Tripletf>& triplets) const {
-    arrayAppend(triplets, Containers::InPlaceInit, Tripletf(m_vIdx, m_vIdx, m_stiffness));
+void AttachmentConstraint::getWLaplacianContribution(Containers::Array<EgTripletf>& triplets) const {
+    arrayAppend(triplets, Containers::InPlaceInit, EgTripletf(m_vIdx, m_vIdx, m_stiffness));
 }
 
-FEMConstraint::FEMConstraint(const Vector4ui& vIDs, const VecXf& x) :
+FEMConstraint::FEMConstraint(const Vector4ui& vIDs, const EgVecXf& x) :
     Constraint(Constraint::Type::FEM), m_vIDs(vIDs) {
     for(size_t i = 0; i < 3; ++i) {
         m_Dm.col(i) = x.block3(m_vIDs[i]) - x.block3(m_vIDs[3]);
@@ -56,9 +56,9 @@ FEMConstraint::FEMConstraint(const Vector4ui& vIDs, const VecXf& x) :
     m_Dm_inv_T = m_Dm_inv.transpose();
     m_w        = std::abs(m_Dm.determinant()) / 6.0f;
 
-    Mat3x4f IND;
-    IND.block<3, 3>(0, 0) = Mat3f::Identity();
-    IND.block<3, 1>(0, 3) = Vec3f(-1, -1, -1);
+    EgMat3x4f IND;
+    IND.block<3, 3>(0, 0) = EgMat3f::Identity();
+    IND.block<3, 1>(0, 3) = EgVec3f(-1, -1, -1);
     m_G = m_Dm_inv_T * IND;
 }
 
@@ -99,7 +99,7 @@ void FEMConstraint::computeLaplacianWeight() {
     m_L = laplacianCoeff * m_w * m_G.transpose() * m_G;
 }
 
-Float FEMConstraint::getMassContribution(VecXf& m, VecXf& m_1d) {
+Float FEMConstraint::getMassContribution(EgVecXf& m, EgVecXf& m_1d) {
     const Float vw = 0.25f * m_w;
     for(UnsignedInt i = 0; i != 4; i++) {
         m[3 * m_vIDs[i] + 0] += vw;
@@ -110,24 +110,24 @@ Float FEMConstraint::getMassContribution(VecXf& m, VecXf& m_1d) {
     return m_w;
 }
 
-Float FEMConstraint::computeStressAndEnergyDensity(const Mat3f& F, Mat3f& P) const {
+Float FEMConstraint::computeStressAndEnergyDensity(const EgMat3f& F, EgMat3f& P) const {
     Float e_density = 0;
     switch(m_material) {
         case Material::Corotational: {
-            Mat3f U;
-            Mat3f V;
-            Vec3f SIGMA;
+            EgMat3f U;
+            EgMat3f V;
+            EgVec3f SIGMA;
             singularValueDecomp(U, SIGMA, V, F);
-            const Mat3f R          = U * V.transpose();
-            const Mat3f FmR        = F - R;
+            const EgMat3f R          = U * V.transpose();
+            const EgMat3f FmR        = F - R;
             const Float traceRTFm3 = (R.transpose() * F).trace() - 3;
             P         = 2 * m_mu * FmR + m_lambda * traceRTFm3 * R;
             e_density = m_mu * FmR.squaredNorm() + 0.5f * m_lambda * traceRTFm3 * traceRTFm3;
         }
         break;
         case Material::StVK: {
-            const Mat3f I      = Mat3f::Identity();
-            const Mat3f E      = 0.5f * (F.transpose() * F - I);
+            const EgMat3f I      = EgMat3f::Identity();
+            const EgMat3f E      = 0.5f * (F.transpose() * F - I);
             const Float traceE = E.trace();
             P = F * (2 * m_mu * E + m_lambda * traceE * I);
             const Float J = F.determinant();
@@ -148,7 +148,7 @@ Float FEMConstraint::computeStressAndEnergyDensity(const Mat3f& F, Mat3f& P) con
                 break;
             }
             const Float J0    = m_neohookean_clamp_value;
-            const Mat3f FinvT = F.inverse().transpose(); /* F is invertible if J != 0 */
+            const EgMat3f FinvT = F.inverse().transpose(); /* F is invertible if J != 0 */
             if(J > J0) {
                 const Float logJ = std::log(J);
                 P         += (-m_mu + m_lambda * logJ) * FinvT;
@@ -173,12 +173,12 @@ Float FEMConstraint::computeStressAndEnergyDensity(const Mat3f& F, Mat3f& P) con
     return e_density;
 }
 
-Float FEMConstraint::evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) const {
-    Mat3f       P;
-    const Mat3f F         = getMatrixDs(x) * m_Dm_inv;
+Float FEMConstraint::evaluateEnergyAndGradient(const EgVecXf& x, EgVecXf& gradient) const {
+    EgMat3f       P;
+    const EgMat3f F         = getMatrixDs(x) * m_Dm_inv;
     const Float e_density = computeStressAndEnergyDensity(F, P);
-    const Mat3f H         = m_w * P * m_Dm_inv_T;
-    Vec3f       H3        = Vec3f::Zero();
+    const EgMat3f H         = m_w * P * m_Dm_inv_T;
+    EgVec3f       H3        = EgVec3f::Zero();
     for(UnsignedInt i = 0; i < 3; i++) {
         gradient.block3(m_vIDs[i]) += H.col(i);
         H3 += H.col(i);
@@ -187,24 +187,24 @@ Float FEMConstraint::evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) 
     return e_density * m_w;
 }
 
-void FEMConstraint::getWLaplacianContribution(Containers::Array<Tripletf>& triplets) const {
+void FEMConstraint::getWLaplacianContribution(Containers::Array<EgTripletf>& triplets) const {
     for(UnsignedInt i = 0; i < 4; i++) {
         for(UnsignedInt j = 0; j < 4; j++) {
-            arrayAppend(triplets, Containers::InPlaceInit, Tripletf(m_vIDs[i], m_vIDs[j], m_L(i, j)));
+            arrayAppend(triplets, Containers::InPlaceInit, EgTripletf(m_vIDs[i], m_vIDs[j], m_L(i, j)));
         }
     }
 }
 
-Mat3f FEMConstraint::getMatrixDs(const VecXf& x) const {
-    Mat3f Ds;
+EgMat3f FEMConstraint::getMatrixDs(const EgVecXf& x) const {
+    EgMat3f Ds;
     for(size_t i = 0; i < 3; ++i) {
         Ds.col(i) = x.block3(m_vIDs[i]) - x.block3(m_vIDs[3]);
     }
     return Ds;
 }
 
-void FEMConstraint::singularValueDecomp(Mat3f& U, Vec3f& SIGMA, Mat3f& V, const Mat3f& A, bool signed_svd) const {
-    Eigen::JacobiSVD<Mat3f> svd;
+void FEMConstraint::singularValueDecomp(EgMat3f& U, EgVec3f& SIGMA, EgMat3f& V, const EgMat3f& A, bool signed_svd) const {
+    Eigen::JacobiSVD<EgMat3f> svd;
     svd.compute(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
     U     = svd.matrixU();
     V     = svd.matrixV();

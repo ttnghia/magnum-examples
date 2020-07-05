@@ -53,18 +53,18 @@ private:
      * x will be changed during iteration
      * the final value of x will be the next position vector
      */
-    bool  performLBFGSOneIteration(VecXf& x);
-    Float evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient);
-    VecXf lbfgsKernelLinearSolve(const VecXf& gf_k);
-    Float linesearch(const VecXf& x, Float energy, const VecXf& gradDir, const VecXf& descentDir,
-                     Float& nextEnergy, VecXf& nextGradDir);
+    bool    performLBFGSOneIteration(EgVecXf& x);
+    Float   evaluateEnergyAndGradient(const EgVecXf& x, EgVecXf& gradient);
+    EgVecXf lbfgsKernelLinearSolve(const EgVecXf& gf_k);
+    Float   linesearch(const EgVecXf& x, Float energy, const EgVecXf& gradDir, const EgVecXf& descentDir,
+                       Float& nextEnergy, EgVecXf& nextGradDir);
     void prefactorize();
 
 public: /* public accessible parameters */
     struct {
-        Vec3f gravity = Vec3f(0, -10, 0);
-        Float damping { 0.002f };
-        Float attachmentStiffness{ 1000.0f };
+        EgVec3f gravity = EgVec3f(0, -10, 0);
+        Float   damping { 0.002f };
+        Float   attachmentStiffness{ 1000.0f };
 
         Float dt { 1.0f / 30.0f };
         int   subSteps { 5 };
@@ -90,8 +90,8 @@ private: /* simulation variables */
     Containers::Array<Constraint*> m_constraints;
 
     struct {
-        VecXf y;
-        VecXf externalForces;
+        EgVecXf y;
+        EgVecXf externalForces;
     } m_integration;
 
     struct {
@@ -99,14 +99,14 @@ private: /* simulation variables */
         const Float       epsSMALL      = 1e-12f;
         const std::size_t historyLength = 5;
 
-        Eigen::SimplicialLLT<SparseMatrixf, Eigen::Upper> lltSolver;
+        Eigen::SimplicialLLT<EgSparseMatf, Eigen::Upper> lltSolver;
 
-        bool              prefactored = false;
-        VecXf             lastX;
-        VecXf             lastGradient;
-        std::deque<VecXf> yQueue;
-        std::deque<VecXf> sQueue;
-        MatX3f            linearSolveRhsN3;
+        bool                prefactored = false;
+        EgVecXf             lastX;
+        EgVecXf             lastGradient;
+        std::deque<EgVecXf> yQueue;
+        std::deque<EgVecXf> sQueue;
+        EgMatX3f            linearSolveRhsN3;
     } m_lbfgs;
 
     struct {
@@ -114,9 +114,9 @@ private: /* simulation variables */
         const Float       alpha { 0.03f };
         const Float       beta{ 0.5f };
 
-        bool  firstIteration;
-        Float prefetchedEnergy;
-        VecXf prefetchedGradient;
+        bool    firstIteration;
+        Float   prefetchedEnergy;
+        EgVecXf prefetchedGradient;
     } m_lineSearch;
 };
 } }

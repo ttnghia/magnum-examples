@@ -60,7 +60,7 @@ void TetMesh::loadMesh(const char* meshFile) {
 
     char      buffer[256];
     char      ignore[256];
-    Vec3f     pos;
+    EgVec3f   pos;
     Vector3ui face;
     Vector4ui tet;
     while(!infile.eof()) {

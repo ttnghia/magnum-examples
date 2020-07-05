@@ -63,7 +63,7 @@ void Simulator::advanceStep() {
                           m_mesh->m_velocities * m_generalParams.dt +
                           m_mesh->m_invMassMatrix * m_integration.externalForces * m_generalParams.dt * m_generalParams.dt;
 
-        VecXf x = m_integration.y; /* x will be modified during line search */
+        EgVecXf x = m_integration.y; /* x will be modified during line search */
         m_lineSearch.firstIteration = true;
         bool converge = false;
         for(UnsignedInt iter = 0; !converge && iter < m_lineSearch.iterations; ++iter) {
@@ -102,7 +102,7 @@ void Simulator::initConstraints() {
     }
     /* Setup attachment constraints */
     for(const auto vIdx : m_mesh->m_fixedVerts) {
-        const Vec3f fixedPoint = m_mesh->m_positions.block3(vIdx);
+        const EgVec3f fixedPoint = m_mesh->m_positions.block3(vIdx);
         arrayAppend(m_constraints, Containers::InPlaceInit,
                     new AttachmentConstraint(vIdx, fixedPoint, m_generalParams.attachmentStiffness));
     }
@@ -135,7 +135,7 @@ void Simulator::initConstraints() {
 }
 
 void Simulator::calculateExternalForce(bool addWind) {
-    Vec3f force = m_generalParams.gravity;
+    EgVec3f force = m_generalParams.gravity;
     if(addWind) {
         force.z() = (std::sin((m_generalParams.time - m_wind.timeEnable) * m_wind.frequency) + 0.5f) * m_wind.magnitude;
     }
@@ -146,18 +146,18 @@ void Simulator::calculateExternalForce(bool addWind) {
     m_integration.externalForces = m_mesh->m_massMatrix * m_integration.externalForces;
 }
 
-bool Simulator::performLBFGSOneIteration(VecXf& x) {
+bool Simulator::performLBFGSOneIteration(EgVecXf& x) {
     const Float       historyLength = m_lbfgs.historyLength;
     const Float       epsLARGE      = m_lbfgs.epsLARGE;
     const std::size_t epsSMALL      = m_lbfgs.epsSMALL;
 
-    bool  converged = false;
-    Float currentEnergy;
-    VecXf currentGrad;
-    auto& yQueue             = m_lbfgs.yQueue;
-    auto& sQueue             = m_lbfgs.sQueue;
-    auto& prefetchedEnergy   = m_lineSearch.prefetchedEnergy;
-    auto& prefetchedGradient = m_lineSearch.prefetchedGradient;
+    bool    converged = false;
+    Float   currentEnergy;
+    EgVecXf currentGrad;
+    auto&   yQueue             = m_lbfgs.yQueue;
+    auto&   sQueue             = m_lbfgs.sQueue;
+    auto&   prefetchedEnergy   = m_lineSearch.prefetchedEnergy;
+    auto&   prefetchedGradient = m_lineSearch.prefetchedGradient;
 
     if(m_lineSearch.firstIteration) {
         yQueue.clear();
@@ -168,7 +168,7 @@ bool Simulator::performLBFGSOneIteration(VecXf& x) {
         m_lbfgs.lastX        = x;
         m_lbfgs.lastGradient = currentGrad;
 
-        VecXf p_k = -lbfgsKernelLinearSolve(currentGrad);
+        EgVecXf p_k = -lbfgsKernelLinearSolve(currentGrad);
         if(-p_k.dot(currentGrad) < epsSMALL || p_k.norm() / x.norm() < epsLARGE) {
             converged = true;
         }
@@ -179,8 +179,8 @@ bool Simulator::performLBFGSOneIteration(VecXf& x) {
         currentEnergy = prefetchedEnergy;
         currentGrad   = prefetchedGradient;
 
-        const VecXf s_k = x - m_lbfgs.lastX;
-        const VecXf y_k = currentGrad - m_lbfgs.lastGradient;
+        const EgVecXf s_k = x - m_lbfgs.lastX;
+        const EgVecXf y_k = currentGrad - m_lbfgs.lastGradient;
         if(sQueue.size() > m_lbfgs.historyLength) {
             sQueue.pop_back();
             yQueue.pop_back();
@@ -190,7 +190,7 @@ bool Simulator::performLBFGSOneIteration(VecXf& x) {
 
         m_lbfgs.lastX        = x;
         m_lbfgs.lastGradient = currentGrad;
-        VecXf q = currentGrad;
+        EgVecXf q = currentGrad;
 
         Containers::Array<Float> rho;
         Containers::Array<Float> alpha;
@@ -207,7 +207,7 @@ bool Simulator::performLBFGSOneIteration(VecXf& x) {
             q = q - alpha[i] * yQueue[i];
         }
 
-        VecXf p_k = -lbfgsKernelLinearSolve(q);
+        EgVecXf p_k = -lbfgsKernelLinearSolve(q);
         for(int i = int(visitBound) - 1; i >= 0; --i) {
             const Float beta = rho[i] * yQueue[i].dot(p_k);
             p_k -= sQueue[i] * (alpha[i] - beta);
@@ -222,11 +222,11 @@ bool Simulator::performLBFGSOneIteration(VecXf& x) {
     return converged;
 }
 
-Float Simulator::evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) {
-    const Float hSqr          = m_generalParams.dt * m_generalParams.dt;
-    const VecXf xmy           = x - m_integration.y;
-    const VecXf Mxmy          = m_mesh->m_massMatrix * xmy;
-    const Float energyInertia = 0.5f * xmy.transpose() * Mxmy;
+Float Simulator::evaluateEnergyAndGradient(const EgVecXf& x, EgVecXf& gradient) {
+    const Float   hSqr          = m_generalParams.dt * m_generalParams.dt;
+    const EgVecXf xmy           = x - m_integration.y;
+    const EgVecXf Mxmy          = m_mesh->m_massMatrix * xmy;
+    const Float   energyInertia = 0.5f * xmy.transpose() * Mxmy;
     gradient.resize(m_mesh->m_numVerts * 3);
     gradient.setZero();
     Float energyConstraints = 0;
@@ -238,23 +238,23 @@ Float Simulator::evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) {
     return energy;
 }
 
-VecXf Simulator::lbfgsKernelLinearSolve(const VecXf& rhs) {
+EgVecXf Simulator::lbfgsKernelLinearSolve(const EgVecXf& rhs) {
     auto& rhsN3 = m_lbfgs.linearSolveRhsN3;
     rhsN3.resize(rhs.size() / 3, 3);
     std::memcpy(rhsN3.data(), rhs.data(), sizeof(Float) * rhs.size());
-    const MatX3f r_n3 = m_lbfgs.lltSolver.solve(rhsN3);
+    const EgMatX3f r_n3 = m_lbfgs.lltSolver.solve(rhsN3);
 
-    VecXf r;
+    EgVecXf r;
     r.resize(rhs.size());
     std::memcpy(r.data(), r_n3.data(), sizeof(Float) * r.size());
     return r;
 }
 
-Float Simulator::linesearch(const VecXf& x, Float energy, const VecXf& gradDir,
-                            const VecXf& descentDir, Float& nextEnergy, VecXf& nextGradDir) {
-    VecXf x_plus_tdx(m_mesh->m_numVerts * 3);
-    Float t      = 1.0f / m_lineSearch.beta;
-    Float objVal = energy;
+Float Simulator::linesearch(const EgVecXf& x, Float energy, const EgVecXf& gradDir,
+                            const EgVecXf& descentDir, Float& nextEnergy, EgVecXf& nextGradDir) {
+    EgVecXf x_plus_tdx(m_mesh->m_numVerts * 3);
+    Float   t      = 1.0f / m_lineSearch.beta;
+    Float   objVal = energy;
     do{
         t         *= m_lineSearch.beta;
         x_plus_tdx = x + t * descentDir;
@@ -277,11 +277,11 @@ Float Simulator::linesearch(const VecXf& x, Float energy, const VecXf& gradDir,
 void Simulator::prefactorize() {
     if(!m_lbfgs.prefactored) {
         /* Compute the Laplacian matrix */
-        Containers::Array<Tripletf> triplets;
+        Containers::Array<EgTripletf> triplets;
         for(const auto c: m_constraints) {
             c->getWLaplacianContribution(triplets);
         }
-        SparseMatrixf weightedLaplacian1D;
+        EgSparseMatf weightedLaplacian1D;
         weightedLaplacian1D.resize(m_mesh->m_numVerts, m_mesh->m_numVerts);
         weightedLaplacian1D.setFromTriplets(triplets.begin(), triplets.end());
         weightedLaplacian1D *= (m_generalParams.dt * m_generalParams.dt);
@@ -290,7 +290,7 @@ void Simulator::prefactorize() {
         }
 
         /* Prefactor the matrix */
-        SparseMatrixf& A = weightedLaplacian1D;
+        EgSparseMatf& A = weightedLaplacian1D;
         m_lbfgs.lltSolver.analyzePattern(A);
         m_lbfgs.lltSolver.factorize(A);
         Float regularization = 1e-10f;

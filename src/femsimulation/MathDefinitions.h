@@ -40,23 +40,20 @@
 #include <Eigen/Sparse>
 
 namespace Magnum { namespace Examples {
-template<int N, class Type> using VecX   = Eigen::Matrix<Type, N, 1>;
-template<int N, class Type> using MatXxX = Eigen::Matrix<Type, N, N>;
-
 /* Fixed size vector/matrix */
-using Vec3f   = VecX<3, Float>;
-using Mat3f   = MatXxX<3, Float>;
-using Mat4f   = MatXxX<4, Float>;
-using Mat3x4f = Eigen::Matrix<Float, 3, 4>;
+using EgVec3f   = Eigen::Matrix<float, 3, 1>;
+using EgMat3f   = Eigen::Matrix<float, 3, 3>;
+using EgMat4f   = Eigen::Matrix<float, 4, 4>;
+using EgMat3x4f = Eigen::Matrix<float, 3, 4>;
 
 /* Dynamic size vector/matrix */
-using MatX3f = Eigen::Matrix<Float, -1, 3, Eigen::RowMajor>; /* must be row major for memcpy */
-using VecXf  = Eigen::Matrix<Float, Eigen::Dynamic, 1>;
+using EgMatX3f = Eigen::Matrix<float, -1, 3, Eigen::RowMajor>; /* must be row major for memcpy */
+using EgVecXf  = Eigen::Matrix<float, Eigen::Dynamic, 1>;
 
 /* Sparse matrix */
-using DiagonalMatrixf = Eigen::DiagonalMatrix<Float, Eigen::Dynamic, Eigen::Dynamic>;
-using SparseMatrixf   = Eigen::SparseMatrix<Float>;
-using Tripletf        = Eigen::Triplet<Float, unsigned int>;
+using EgDiagMatf   = Eigen::DiagonalMatrix<float, Eigen::Dynamic, Eigen::Dynamic>;
+using EgSparseMatf = Eigen::SparseMatrix<float>;
+using EgTripletf   = Eigen::Triplet<float, unsigned int>;
 
 /* Access a block of 3 scalars */
 #define block3(a) block<3, 1>(3 * (a), 0)

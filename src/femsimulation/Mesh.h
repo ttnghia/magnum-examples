@@ -68,12 +68,12 @@ public:
     UnsignedInt m_numVerts; /* n */
     Float       m_totalMass { 1.0f };
 
-    VecXf           m_positions_t0;  /* 1x3n  */
-    VecXf           m_positions;     /* 1x3n  */
-    VecXf           m_velocities;    /* 1x3n  */
-    DiagonalMatrixf m_massMatrix;    /* 3nx3n */
-    DiagonalMatrixf m_invMassMatrix; /* 3nx3n */
-    DiagonalMatrixf m_massMatrix1D;  /* nxn */
+    EgVecXf           m_positions_t0;  /* 1x3n  */
+    EgVecXf           m_positions;     /* 1x3n  */
+    EgVecXf           m_velocities;    /* 1x3n  */
+    EgDiagMatf m_massMatrix;    /* 3nx3n */
+    EgDiagMatf m_invMassMatrix; /* 3nx3n */
+    EgDiagMatf m_massMatrix1D;  /* nxn */
 
     Containers::Array<UnsignedInt> m_fixedVerts;
     Containers::Array<Vector3ui>   m_triangles;
