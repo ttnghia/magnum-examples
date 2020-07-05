@@ -28,6 +28,7 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <Corrade/Containers/GrowableArray.h>
 #include "Simulator.h"
 
 namespace Magnum { namespace Examples {
@@ -99,7 +100,8 @@ void Simulator::initConstraints() {
     /* Setup attachment constraints */
     for(const auto vIdx : m_mesh->m_fixedVerts) {
         const Vec3f fixedPoint = m_mesh->m_positions.block3(vIdx);
-        m_constraints.push_back(new AttachmentConstraint(vIdx, fixedPoint, m_generalParams.attachmentStiffness));
+        arrayAppend(m_constraints, Containers::InPlaceInit,
+                    new AttachmentConstraint(vIdx, fixedPoint, m_generalParams.attachmentStiffness));
     }
 
     /* Compute mass for the vertices */
@@ -117,7 +119,7 @@ void Simulator::initConstraints() {
                           m_FEMMaterial.mu, m_FEMMaterial.lambda, m_FEMMaterial.kappa);
         total_volume += c->getMassContribution(m_mesh->m_massMatrix.diagonal(),
                                                m_mesh->m_massMatrix1D.diagonal());
-        m_constraints.push_back(c);
+        arrayAppend(m_constraints, static_cast<Constraint*>(c));
     }
     m_mesh->m_massMatrix   = m_mesh->m_massMatrix * (m_mesh->m_totalMass / total_volume);
     m_mesh->m_massMatrix1D = m_mesh->m_massMatrix1D * (m_mesh->m_totalMass / total_volume);
@@ -142,9 +144,9 @@ void Simulator::calculateExternalForce(bool addWind) {
 }
 
 bool Simulator::performLBFGSOneIteration(VecXf& x) {
-    const Float historyLength = m_lbfgs.historyLength;
-    const Float epsLARGE      = m_lbfgs.epsLARGE;
-    const std::size_t   epsSMALL      = m_lbfgs.epsSMALL;
+    const Float       historyLength = m_lbfgs.historyLength;
+    const Float       epsLARGE      = m_lbfgs.epsLARGE;
+    const std::size_t epsSMALL      = m_lbfgs.epsSMALL;
 
     bool  converged = false;
     Float currentEnergy;
@@ -187,18 +189,18 @@ bool Simulator::performLBFGSOneIteration(VecXf& x) {
         m_lbfgs.lastGradient = currentGrad;
         VecXf q = currentGrad;
 
-        StdVT<Float> rho;
-        StdVT<Float> alpha;
-        const std::size_t    queueSize  = sQueue.size();
-        const std::size_t    visitBound = (historyLength < queueSize) ? historyLength : queueSize;
+        Containers::Array<Float> rho;
+        Containers::Array<Float> alpha;
+        const std::size_t        queueSize  = sQueue.size();
+        const std::size_t        visitBound = (historyLength < queueSize) ? historyLength : queueSize;
         for(std::size_t i = 0; i < visitBound; ++i) {
             const Float yi_dot_si = yQueue[i].dot(sQueue[i]);
             if(yi_dot_si < m_lbfgs.epsSMALL) {
                 return true;
             }
             const Float rho_i = 1.0f / yi_dot_si;
-            rho.push_back(rho_i);
-            alpha.push_back(rho[i] * sQueue[i].dot(q));
+            arrayAppend(rho,   rho_i);
+            arrayAppend(alpha, rho[i] * sQueue[i].dot(q));
             q = q - alpha[i] * yQueue[i];
         }
 
@@ -272,7 +274,7 @@ Float Simulator::linesearch(const VecXf& x, Float energy, const VecXf& gradDir,
 void Simulator::prefactorize() {
     if(!m_lbfgs.prefactored) {
         /* Compute the Laplacian matrix */
-        StdVT<Tripletf> triplets;
+        Containers::Array<Tripletf> triplets;
         for(const auto c: m_constraints) {
             c->getWLaplacianContribution(triplets);
         }

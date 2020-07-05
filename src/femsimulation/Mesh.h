@@ -34,6 +34,8 @@
 #include <Magnum/GL/Mesh.h>
 #include <Magnum/GL/Texture.h>
 #include <Magnum/Math/Matrix4.h>
+#include <Magnum/Math/Vector3.h>
+#include <Magnum/Math/Vector4.h>
 #include <Magnum/Shaders/MeshVisualizer.h>
 
 #include "MathDefinitions.h"
@@ -73,9 +75,9 @@ public:
     DiagonalMatrixf m_invMassMatrix; /* 3nx3n */
     DiagonalMatrixf m_massMatrix1D;  /* nxn */
 
-    StdVT<UnsignedInt> m_fixedVerts;
-    StdVT<Vec3ui>      m_triangles;
-    StdVT<Vec4ui>      m_tets;
+    Containers::Array<UnsignedInt> m_fixedVerts;
+    Containers::Array<Vector3ui>   m_triangles;
+    Containers::Array<Vector4ui>   m_tets;
 };
 } }
 

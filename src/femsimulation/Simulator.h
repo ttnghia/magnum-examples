@@ -86,8 +86,8 @@ public: /* public accessible parameters */
     } m_FEMMaterial;
 
 private: /* simulation variables */
-    TetMesh*           m_mesh;
-    StdVT<Constraint*> m_constraints;
+    TetMesh* m_mesh;
+    Containers::Array<Constraint*> m_constraints;
 
     struct {
         VecXf y;

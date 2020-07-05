@@ -30,6 +30,7 @@
 
 #include <Corrade/Containers/Array.h>
 #include <Corrade/Containers/ArrayView.h>
+#include <Corrade/Containers/GrowableArray.h>
 #include <Corrade/Utility/Debug.h>
 #include <Magnum/GL/TextureFormat.h>
 #include <Magnum/ImageView.h>
@@ -48,8 +49,8 @@
 
 namespace Magnum { namespace Examples {
 void TetMesh::loadMesh(const char* meshFile) {
-    m_triangles.clear();
-    m_tets.clear();
+    arrayResize(m_triangles, 0);
+    arrayResize(m_tets,      0);
 
     std::ifstream infile(meshFile);
     if(!infile.is_open()) {
@@ -57,11 +58,11 @@ void TetMesh::loadMesh(const char* meshFile) {
         return;
     }
 
-    char   buffer[256];
-    char   ignore[256];
-    Vec3f  pos;
-    Vec3ui face;
-    Vec4ui tet;
+    char      buffer[256];
+    char      ignore[256];
+    Vec3f     pos;
+    Vector3ui face;
+    Vector4ui tet;
     while(!infile.eof()) {
         infile >> buffer;
         if(strcmp(buffer, "#") == 0) {
@@ -85,7 +86,7 @@ void TetMesh::loadMesh(const char* meshFile) {
                 for(size_t j = 0; j < 3; ++j) {
                     --face[j];
                 }
-                m_triangles.push_back(face);
+                arrayAppend(m_triangles, face);
             }
         } else if(strcmp(buffer, "Tetrahedra") == 0) {
             UnsignedInt numTets;
@@ -96,14 +97,14 @@ void TetMesh::loadMesh(const char* meshFile) {
                 for(size_t j = 0; j < 4; ++j) {
                     --tet[j];
                 }
-                m_tets.push_back(tet);
+                arrayAppend(m_tets, tet);
             }
         }
     }
 
-    CORRADE_INTERNAL_ASSERT( m_numVerts > 0);
+    CORRADE_INTERNAL_ASSERT(m_numVerts > 0);
     CORRADE_INTERNAL_ASSERT(m_triangles.size() > 0);
-    CORRADE_INTERNAL_ASSERT(     m_tets.size() > 0);
+    CORRADE_INTERNAL_ASSERT(m_tets.size() > 0);
 
     /* Find the maximum x value */
     Float max_x = -1e10f;
@@ -113,13 +114,13 @@ void TetMesh::loadMesh(const char* meshFile) {
         //        if(max_x < v.y()) { max_x = v.y(); }
     }
 
-    m_fixedVerts.clear();
+    arrayResize(m_fixedVerts, 0);
     /* Fix the vertices that have x ~~ max_x */
     for(UnsignedInt idx = 0; idx < m_numVerts; ++idx) {
         const Vec3f& v = m_positions_t0.block3(idx);
         if(std::abs(max_x - v.x()) < 1e-4f) {
             //        if(std::abs(max_x - v.y()) < 1e-1f) {
-            m_fixedVerts.push_back(idx);
+            arrayAppend(m_fixedVerts, idx);
         }
     }
 

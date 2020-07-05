@@ -30,6 +30,9 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <Corrade/Containers/Array.h>
+#include <Magnum/Math/Vector4.h>
+
 #include "MathDefinitions.h"
 
 namespace Magnum { namespace Examples {
@@ -42,8 +45,8 @@ public:
     Constraint(Type type) : m_type(type) {}
     virtual ~Constraint() = default;
     Type type() const { return m_type; }
-    virtual Float evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) const        = 0;
-    virtual void  getWLaplacianContribution(StdVT<Tripletf>& laplacian_1d_triplets) const = 0;
+    virtual Float evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) const = 0;
+    virtual void  getWLaplacianContribution(Containers::Array<Tripletf>& laplacian_1d_triplets) const = 0;
 protected:
     Type m_type;
 };
@@ -54,7 +57,7 @@ public:
         Constraint(Constraint::Type::Attachment), m_vIdx(vIdx), m_fixedPos(fixedPos), m_stiffness(stiffness) {}
     void setStiffness(Float stiffness) { m_stiffness = stiffness; }
     virtual Float evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) const;
-    virtual void  getWLaplacianContribution(StdVT<Tripletf>& triplets) const;
+    virtual void  getWLaplacianContribution(Containers::Array<Tripletf>& triplets) const;
 private:
     UnsignedInt m_vIdx;
     Vec3f       m_fixedPos;
@@ -68,14 +71,14 @@ public:
         StVK,
         NeoHookeanExtendLog
     };
-    FEMConstraint(const Vec4ui& vIDs, const VecXf& x);
+    FEMConstraint(const Vector4ui& vIDs, const VecXf& x);
     void  setFEMMaterial(Material type, Float mu, Float lambda, Float kappa);
     Float getMassContribution(VecXf& m, VecXf& m_1d);
     Float computeStressAndEnergyDensity(const Mat3f& F, Mat3f& P) const;
     void  computeLaplacianWeight();
 
     virtual Float evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) const override;
-    virtual void  getWLaplacianContribution(StdVT<Tripletf>& laplacian) const override;
+    virtual void  getWLaplacianContribution(Containers::Array<Tripletf>& laplacian) const override;
 private:
     Mat3f getMatrixDs(const VecXf& x) const;
     void  singularValueDecomp(Mat3f& U, Vec3f& SIGMA, Mat3f& V, const Mat3f& A, bool signed_svd = true) const;
@@ -84,14 +87,14 @@ private:
     Float       m_lambda;
     Float       m_kappa;
     const Float m_neohookean_clamp_value { 0.1f };
-public:                 /* public access for sag-free initializer */
-    Vec4ui  m_vIDs;
-    Mat3f   m_Dm;       /* [x0-x3|x1-x3|x2-x3]       */
-    Mat3f   m_Dm_inv;   /* inverse of m_Dm           */
-    Mat3f   m_Dm_inv_T; /* inverse transpose of m_Dm */
-    Mat3x4f m_G;        /* Q = m_Dr^(-T) * IND;      */
-    Mat4f   m_L;
-    Float   m_w;        /* 1/6 det(Dm);              */
+public:                   /* public access for sag-free initializer */
+    Vector4ui m_vIDs;
+    Mat3f     m_Dm;       /* [x0-x3|x1-x3|x2-x3]       */
+    Mat3f     m_Dm_inv;   /* inverse of m_Dm           */
+    Mat3f     m_Dm_inv_T; /* inverse transpose of m_Dm */
+    Mat3x4f   m_G;        /* Q = m_Dr^(-T) * IND;      */
+    Mat4f     m_L;
+    Float     m_w;        /* 1/6 det(Dm);              */
 };
 
 #define LOGJ_QUADRATIC_EXTENSION /* comment this line to get linear extention of log(J) */

@@ -28,6 +28,8 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <Corrade/Containers/GrowableArray.h>
+
 #include "Constraints.h"
 #include <Eigen/SVD>
 
@@ -40,11 +42,11 @@ Float AttachmentConstraint::evaluateEnergyAndGradient(const VecXf& x, VecXf& gra
     return energy;
 }
 
-void AttachmentConstraint::getWLaplacianContribution(StdVT<Tripletf>& triplets) const {
-    triplets.push_back(Tripletf(m_vIdx, m_vIdx, m_stiffness));
+void AttachmentConstraint::getWLaplacianContribution(Containers::Array<Tripletf>& triplets) const {
+    arrayAppend(triplets, Containers::InPlaceInit, Tripletf(m_vIdx, m_vIdx, m_stiffness));
 }
 
-FEMConstraint::FEMConstraint(const Vec4ui& vIDs, const VecXf& x) :
+FEMConstraint::FEMConstraint(const Vector4ui& vIDs, const VecXf& x) :
     Constraint(Constraint::Type::FEM), m_vIDs(vIDs) {
     for(size_t i = 0; i < 3; ++i) {
         m_Dm.col(i) = x.block3(m_vIDs[i]) - x.block3(m_vIDs[3]);
@@ -185,10 +187,10 @@ Float FEMConstraint::evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) 
     return e_density * m_w;
 }
 
-void FEMConstraint::getWLaplacianContribution(StdVT<Tripletf>& triplets) const {
+void FEMConstraint::getWLaplacianContribution(Containers::Array<Tripletf>& triplets) const {
     for(UnsignedInt i = 0; i < 4; i++) {
         for(UnsignedInt j = 0; j < 4; j++) {
-            triplets.emplace_back(Tripletf(m_vIDs[i], m_vIDs[j], m_L(i, j)));
+            arrayAppend(triplets, Containers::InPlaceInit, Tripletf(m_vIDs[i], m_vIDs[j], m_L(i, j)));
         }
     }
 }

@@ -35,15 +35,12 @@
 #include <Eigen/Sparse>
 
 #include <Magnum/Magnum.h>
-#include <vector>
 
 namespace Magnum { namespace Examples {
 #ifdef _MSC_VER
 #pragma warning (disable: 4127) // condition expression is constant
 #pragma warning (disable: 4996) // 'This function or variable may be unsafe': strcpy, strdup, sprintf, vsnprintf, sscanf, fopen
 #endif
-
-template<class T> using StdVT = std::vector<T>;
 
 template<int N, class Type> using VecX   = Eigen::Matrix<Type, N, 1>;
 template<int N, class Type> using MatXxX = Eigen::Matrix<Type, N, N>;
@@ -52,18 +49,6 @@ template<int N, class Type> using MatXxX = Eigen::Matrix<Type, N, N>;
 using Vec2f = VecX<2, Float>;
 using Vec3f = VecX<3, Float>;
 using Vec4f = VecX<4, Float>;
-
-using Vec2i = VecX<2, int>;
-using Vec3i = VecX<3, int>;
-using Vec4i = VecX<4, int>;
-
-using Vec2ui = VecX<2, unsigned int>;
-using Vec3ui = VecX<3, unsigned int>;
-using Vec4ui = VecX<4, unsigned int>;
-
-using Vec2ul = VecX<2, size_t>;
-using Vec3ul = VecX<3, size_t>;
-using Vec4ul = VecX<4, size_t>;
 
 using Mat2f = MatXxX<2, Float>;
 using Mat3f = MatXxX<3, Float>;
