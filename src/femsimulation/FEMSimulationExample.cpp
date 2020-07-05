@@ -80,7 +80,7 @@ private:
     void mouseScrollEvent(MouseScrollEvent& event) override;
     void textInputEvent(TextInputEvent& event) override;
 
-    void setupScene(Int sceneId = 0);
+    void setupScene(Int sceneId = 1);
     void resetSimulation();
     void showMenu();
 
@@ -147,18 +147,7 @@ FEMSimulationExample::FEMSimulationExample(const Arguments& arguments) : Platfor
     _grid.emplace(&_scene, &_drawables);
     _grid->transform(Matrix4::translation(Vector3{ 0, -30, -100 }) * Matrix4::scaling(Vector3{ 30 }));
 
-    /* Configure camera */
-    const Vector3 eye = Vector3{ -40, 20, 65 };
-    const Vector3 viewCenter { -10, -7, 0 };
-    const Vector3 up  = Vector3::yAxis();
-    const Deg     fov = 45.0_degf;
-    _camera.emplace(_scene, eye, viewCenter, up, fov, windowSize(), framebufferSize());
-    _camera->setLagging(0.85f);
-
-    //  _projectionMatrix = Matrix4::perspectiveProjection(fov,
-    //        Vector2{framebufferSize()}.aspectRatio(), 0.01f, 100.0f);
-
-    /* Setup FEM solver */
+    /* Setup FEM solver, which also setup camera */
     setupScene();
 }
 
@@ -329,6 +318,14 @@ void FEMSimulationExample::textInputEvent(TextInputEvent& event) {
 
 void FEMSimulationExample::setupScene(Int sceneId) {
     if(sceneId == 0) {
+        /* Configure camera */
+        const Vector3 eye = Vector3{ -40, 20, 65 };
+        const Vector3 viewCenter { -10, -7, 0 };
+        const Vector3 up  = Vector3::yAxis();
+        const Deg     fov = 45.0_degf;
+        _camera.emplace(_scene, eye, viewCenter, up, fov, windowSize(), framebufferSize());
+        _camera->setLagging(0.85f);
+
         _mesh.emplace("Data/longbar.mesh");
 
         /* Setup fixed vertices */
@@ -347,33 +344,63 @@ void FEMSimulationExample::setupScene(Int sceneId) {
             }
         }
     } else {
+        /* Configure camera */
+        const Vector3 eye = Vector3{ -20, 0, 65 };
+        const Vector3 viewCenter { -10, -3, 0 };
+        const Vector3 up  = Vector3::yAxis();
+        const Deg     fov = 45.0_degf;
+        _camera.emplace(_scene, eye, viewCenter, up, fov, windowSize(), framebufferSize());
+        _camera->setLagging(0.85f);
+
         _mesh.emplace("Data/squirrel.mesh");
 
         /* Transform the squirrel mesh, since the original mesh is small
          * Firstly compute the squirrel bounding box, then rescale/translate
          */
+        EgVec3f lower(1e10, 1e10, 1e10);
+        EgVec3f upper(-1e10, -1e10, -1e10);
+        for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
+            const EgVec3f& v = _mesh->m_positions_t0.block3(idx);
+            for(Int i = 0; i < 3; ++i) {
+                if(lower[i] > v[i]) { lower[i] = v[i]; }
+                if(upper[i] < v[i]) { upper[i] = v[i]; }
+            }
+        }
 
-        /* Find the maximum y value */
-        Float max_y = -1e10f;
-        for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
-            const EgVec3f& v = _mesh->m_positions_t0.block3(idx);
-            if(max_y < v.y()) { max_y = v.y(); }
-        }
-        for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
-            const EgVec3f& v = _mesh->m_positions_t0.block3(idx);
-            if(max_y < v.y()) { max_y = v.y(); }
-        }
+        const EgVec3f center  = (lower + upper) * 0.5f;
+        const Float   maxSize = Math::max(Math::max(upper[0] - lower[0],
+                                                    upper[1] - lower[1]),
+                                          upper[2] - lower[2]);
+        const Float scaling = 25.0f / maxSize;
 
         /* Fix the vertices that have y ~~ max_y */
         for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
             const EgVec3f& v = _mesh->m_positions_t0.block3(idx);
-            if(std::abs(max_y - v.y()) < 1e-1f) {
+            if(std::abs(v.y() - upper.y()) < 0.05f * maxSize) {
                 arrayAppend(_mesh->m_fixedVerts, idx);
             }
+        }
+
+        /* Transform the mesh */
+        for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
+            EgVec3f v = _mesh->m_positions_t0.block3(idx);
+            v = (v - center) * scaling;
+            _mesh->m_positions_t0.block3(idx) = v;
         }
     }
     _mesh->reset();
     _simulator.emplace(_mesh.get());
+
+    /* Change the simulation paramteres for the squirrel */
+    if(sceneId == 1) {
+        _simulator->m_generalParams.subSteps = 6;
+        _simulator->m_generalParams.damping  = 0.005f;
+        _simulator->m_wind.magnitude         = 7;
+        _simulator->m_FEMMaterial.type       = FEMConstraint::Material::StVK;
+        _simulator->m_FEMMaterial.mu         = 3;
+        _simulator->m_FEMMaterial.lambda     = 3;
+        _simulator->updateConstraintParameters();
+    }
 }
 
 void FEMSimulationExample::resetSimulation() {
@@ -432,15 +459,16 @@ void FEMSimulationExample::showMenu() {
     ImGui::Spacing();
     ImGui::PopItemWidth();
 
-    if(ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::PushID("Scene");
-        const char* items[] = { "Long Bar", "Squirrel" };
-        static int  sceneId { 0 };
-        if(ImGui::Combo("Scene", &sceneId, items, IM_ARRAYSIZE(items))) {
-            setupScene(sceneId);
-        }
-        ImGui::PopID();
-    }
+    //    if(ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen)) {
+    //        ImGui::PushID("Scene");
+    //        const char* items[] = { "Long Bar", "Squirrel" };
+    //        static int  sceneId { 0 };
+    //        if(ImGui::Combo("Scene", &sceneId, items, IM_ARRAYSIZE(items))) {
+    //            _pause = true;
+    //            setupScene(sceneId);
+    //        }
+    //        ImGui::PopID();
+    //    }
     if(ImGui::CollapsingHeader("Timing", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::PushID("Timing");
         char buff[32];
@@ -456,6 +484,15 @@ void FEMSimulationExample::showMenu() {
         ImGui::PopID();
     }
     ImGui::Text(_status.c_str());
+    ImGui::Separator();
+    {
+        const char* items[] = { "Long Bar", "Squirrel Head" };
+        static int  sceneId { 1 };
+        if(ImGui::Combo("Scene", &sceneId, items, IM_ARRAYSIZE(items))) {
+            _pause = true;
+            setupScene(sceneId);
+        }
+    }
     ImGui::Separator();
     if(ImGui::Button("Reset camera")) {
         _camera->reset();

@@ -126,8 +126,16 @@ void TetMesh::setupShader() {
         .addVertexBuffer(m_vertBuffer, 0, Shaders::Generic3D::Position{})
         .setIndexBuffer(std::move(indices), 0, compressed.second);
 
-    m_shader.setColor(Color3{ 0.275f, 0.08f, 0.4f })
-        .setWireframeColor(Color3{ 1, 1, 1 })
+    /* Please select a good color */
+    //    m_shader.setColor(Color3{ 0, 1, 1 })
+    //    m_shader.setColor(Color3{ Vector3{ 3, 252, 248 } / 255.0 })
+    //    m_shader.setColor(Color3{ Vector3{ 3, 252, 198 } / 255.0 })
+    //    m_shader.setColor(Color3{ 0.275f, 0.08f, 0.4f })
+    //    m_shader.setColor(Color3{ Vector3{ 252, 223, 3 } / 255.0 })
+    //    m_shader.setColor(Color3{ Vector3{ 252, 190, 3 } / 255.0 })
+    //    m_shader.setColor(Color3{ Vector3{ 252, 115, 3 } / 255.0 })
+    m_shader.setColor(Color3{ Vector3{ 252, 186, 3 } / 255.0 })
+        .setWireframeColor(Color3{ 0 })
         .setWireframeWidth(0.5f);
 }
 
