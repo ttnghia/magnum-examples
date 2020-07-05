@@ -49,8 +49,8 @@
 
 namespace Magnum { namespace Examples {
 void TetMesh::loadMesh(const char* meshFile) {
-    arrayResize(m_triangles, 0);
-    arrayResize(m_tets,      0);
+    arrayResize(_triangles, 0);
+    arrayResize(_tets,      0);
 
     std::ifstream infile(meshFile);
     if(!infile.is_open()) {
@@ -71,11 +71,11 @@ void TetMesh::loadMesh(const char* meshFile) {
             continue;
         }
         if(strcmp(buffer, "Vertices") == 0) {
-            infile >> m_numVerts;
-            m_positions_t0.resize(m_numVerts * 3);
-            for(UnsignedInt i = 0; i < m_numVerts; ++i) {
+            infile >> _numVerts;
+            _positions_t0.resize(_numVerts * 3);
+            for(UnsignedInt i = 0; i < _numVerts; ++i) {
                 infile >> pos[0] >> pos[1] >> pos[2] >> ignore;
-                m_positions_t0.block3(i) = pos * 1;
+                _positions_t0.block3(i) = pos * 1;
             }
         } else if(strcmp(buffer, "Triangles") == 0) {
             UnsignedInt numFaces;
@@ -86,7 +86,7 @@ void TetMesh::loadMesh(const char* meshFile) {
                 for(size_t j = 0; j < 3; ++j) {
                     --face[j];
                 }
-                arrayAppend(m_triangles, face);
+                arrayAppend(_triangles, face);
             }
         } else if(strcmp(buffer, "Tetrahedra") == 0) {
             UnsignedInt numTets;
@@ -97,14 +97,14 @@ void TetMesh::loadMesh(const char* meshFile) {
                 for(size_t j = 0; j < 4; ++j) {
                     --tet[j];
                 }
-                arrayAppend(m_tets, tet);
+                arrayAppend(_tets, tet);
             }
         }
     }
 
-    CORRADE_INTERNAL_ASSERT(m_numVerts > 0);
-    CORRADE_INTERNAL_ASSERT(m_triangles.size() > 0);
-    CORRADE_INTERNAL_ASSERT(m_tets.size() > 0);
+    CORRADE_INTERNAL_ASSERT(_numVerts > 0);
+    CORRADE_INTERNAL_ASSERT(_triangles.size() > 0);
+    CORRADE_INTERNAL_ASSERT(_tets.size() > 0);
 
     /* Reset positions/velocites */
     reset();
@@ -116,13 +116,13 @@ void TetMesh::setupShader() {
     m_mesh       = GL::Mesh{};
 
     Containers::ArrayView<const UnsignedInt> indexData(
-        reinterpret_cast<const UnsignedInt*>(m_triangles.data()), m_triangles.size() * 3);
+        reinterpret_cast<const UnsignedInt*>(_triangles.data()), _triangles.size() * 3);
     std::pair<Containers::Array<char>, MeshIndexType> compressed =
         MeshTools::compressIndices(indexData);
     GL::Buffer indices;
     indices.setData(compressed.first);
 
-    m_mesh.setCount(m_triangles.size() * 3)
+    m_mesh.setCount(_triangles.size() * 3)
         .addVertexBuffer(m_vertBuffer, 0, Shaders::Generic3D::Position{})
         .setIndexBuffer(std::move(indices), 0, compressed.second);
 
@@ -140,8 +140,8 @@ void TetMesh::setupShader() {
 }
 
 void TetMesh::draw(ArcBallCamera* camera, const Vector2& viewportSize) {
-    Containers::ArrayView<const Float> data(reinterpret_cast<const Float*>(m_positions.data()),
-                                            m_positions.size());
+    Containers::ArrayView<const Float> data(reinterpret_cast<const Float*>(_positions.data()),
+                                            _positions.size());
     m_vertBuffer.setData(data, GL::BufferUsage::DynamicDraw);
     m_shader.setTransformationMatrix(camera->viewMatrix())
         .setProjectionMatrix(camera->camera().projectionMatrix())
@@ -150,8 +150,8 @@ void TetMesh::draw(ArcBallCamera* camera, const Vector2& viewportSize) {
 }
 
 void TetMesh::reset() {
-    m_positions = m_positions_t0;
-    m_velocities.resize(3 * m_numVerts);
-    m_velocities.setZero();
+    _positions = _positions_t0;
+    _velocities.resize(3 * _numVerts);
+    _velocities.setZero();
 }
 } }

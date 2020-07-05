@@ -180,7 +180,7 @@ void FEMSimulationExample::drawEvent() {
             count   = 0;
         }
         char buff[128];
-        sprintf(buff, "Running simulation (t = %.2f (s))", _simulator->m_generalParams.time);
+        sprintf(buff, "Running simulation (t = %.2f (s))", _simulator->_generalParams.time);
         _status = std::string(buff);
     }
 
@@ -331,16 +331,16 @@ void FEMSimulationExample::setupScene(Int sceneId) {
         /* Setup fixed vertices */
         /* Find the maximum x value */
         Float max_x = -1e10f;
-        for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
-            const EgVec3f& v = _mesh->m_positions_t0.block3(idx);
+        for(UnsignedInt idx = 0; idx < _mesh->_numVerts; ++idx) {
+            const EgVec3f& v = _mesh->_positions_t0.block3(idx);
             if(max_x < v.x()) { max_x = v.x(); }
         }
 
         /* Fix the vertices that have x ~~ max_x */
-        for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
-            const EgVec3f& v = _mesh->m_positions_t0.block3(idx);
+        for(UnsignedInt idx = 0; idx < _mesh->_numVerts; ++idx) {
+            const EgVec3f& v = _mesh->_positions_t0.block3(idx);
             if(std::abs(max_x - v.x()) < 1e-4f) {
-                arrayAppend(_mesh->m_fixedVerts, idx);
+                arrayAppend(_mesh->_fixedVerts, idx);
             }
         }
     } else {
@@ -359,8 +359,8 @@ void FEMSimulationExample::setupScene(Int sceneId) {
          */
         EgVec3f lower(1e10, 1e10, 1e10);
         EgVec3f upper(-1e10, -1e10, -1e10);
-        for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
-            const EgVec3f& v = _mesh->m_positions_t0.block3(idx);
+        for(UnsignedInt idx = 0; idx < _mesh->_numVerts; ++idx) {
+            const EgVec3f& v = _mesh->_positions_t0.block3(idx);
             for(Int i = 0; i < 3; ++i) {
                 if(lower[i] > v[i]) { lower[i] = v[i]; }
                 if(upper[i] < v[i]) { upper[i] = v[i]; }
@@ -374,18 +374,18 @@ void FEMSimulationExample::setupScene(Int sceneId) {
         const Float scaling = 25.0f / maxSize;
 
         /* Fix the vertices that have y ~~ max_y */
-        for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
-            const EgVec3f& v = _mesh->m_positions_t0.block3(idx);
+        for(UnsignedInt idx = 0; idx < _mesh->_numVerts; ++idx) {
+            const EgVec3f& v = _mesh->_positions_t0.block3(idx);
             if(std::abs(v.y() - upper.y()) < 0.05f * maxSize) {
-                arrayAppend(_mesh->m_fixedVerts, idx);
+                arrayAppend(_mesh->_fixedVerts, idx);
             }
         }
 
         /* Transform the mesh */
-        for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
-            EgVec3f v = _mesh->m_positions_t0.block3(idx);
+        for(UnsignedInt idx = 0; idx < _mesh->_numVerts; ++idx) {
+            EgVec3f v = _mesh->_positions_t0.block3(idx);
             v = (v - center) * scaling;
-            _mesh->m_positions_t0.block3(idx) = v;
+            _mesh->_positions_t0.block3(idx) = v;
         }
     }
     _mesh->reset();
@@ -393,12 +393,12 @@ void FEMSimulationExample::setupScene(Int sceneId) {
 
     /* Change the simulation paramteres for the squirrel */
     if(sceneId == 1) {
-        _simulator->m_generalParams.subSteps = 6;
-        _simulator->m_generalParams.damping  = 0.005f;
-        _simulator->m_wind.magnitude         = 7;
-        _simulator->m_FEMMaterial.type       = FEMConstraint::Material::StVK;
-        _simulator->m_FEMMaterial.mu         = 3;
-        _simulator->m_FEMMaterial.lambda     = 3;
+        _simulator->_generalParams.subSteps = 6;
+        _simulator->_generalParams.damping  = 0.005f;
+        _simulator->_windParams.magnitude         = 7;
+        _simulator->_materialParams.type       = FEMConstraint::Material::StVK;
+        _simulator->_materialParams.mu         = 3;
+        _simulator->_materialParams.lambda     = 3;
         _simulator->updateConstraintParameters();
     }
 }
@@ -418,23 +418,23 @@ void FEMSimulationExample::showMenu() {
     ImGui::PushItemWidth(120);
     if(ImGui::CollapsingHeader("General Simulation Parameters")) {
         ImGui::PushID("General-Parameters");
-        ImGui::InputFloat("Damping", &_simulator->m_generalParams.damping);
-        if(ImGui::InputFloat("Attachement Stiffness", &_simulator->m_generalParams.attachmentStiffness)) {
+        ImGui::InputFloat("Damping", &_simulator->_generalParams.damping);
+        if(ImGui::InputFloat("Attachement Stiffness", &_simulator->_generalParams.attachmentStiffness)) {
             _simulator->updateConstraintParameters();
         }
         ImGui::Spacing();
-        ImGui::InputFloat("Frame Time", &_simulator->m_generalParams.dt, 0.0f, 0.0f, "%.6g");
-        ImGui::InputInt("Substeps", &_simulator->m_generalParams.subSteps);
+        ImGui::InputFloat("Frame Time", &_simulator->_generalParams.dt, 0.0f, 0.0f, "%.6g");
+        ImGui::InputInt("Substeps", &_simulator->_generalParams.subSteps);
         ImGui::PopID();
     }
     ImGui::Spacing();
 
     if(ImGui::CollapsingHeader("Wind")) {
         ImGui::PushID("Wind");
-        ImGui::Checkbox("Enable", &_simulator->m_wind.enable);
-        ImGui::InputFloat("Time enable", &_simulator->m_wind.timeEnable);
-        ImGui::InputFloat("Magnitude",   &_simulator->m_wind.magnitude);
-        ImGui::InputFloat("Frequency",   &_simulator->m_wind.frequency);
+        ImGui::Checkbox("Enable", &_simulator->_windParams.enable);
+        ImGui::InputFloat("Time enable", &_simulator->_windParams.timeEnable);
+        ImGui::InputFloat("Magnitude",   &_simulator->_windParams.magnitude);
+        ImGui::InputFloat("Frequency",   &_simulator->_windParams.frequency);
         ImGui::PopID();
     }
     ImGui::Spacing();
@@ -443,14 +443,14 @@ void FEMSimulationExample::showMenu() {
         ImGui::PushID("FEM-Material");
         const char* items[] = { "Corotational", "StVK", "NeoHookean-ExtendLog" };
         ImGui::PopItemWidth();
-        if(ImGui::Combo("Material", &_simulator->m_FEMMaterial.type, items, IM_ARRAYSIZE(items))) {
+        if(ImGui::Combo("Material", &_simulator->_materialParams.type, items, IM_ARRAYSIZE(items))) {
             _simulator->updateConstraintParameters();
         }
         ImGui::PushItemWidth(120);
-        if(ImGui::InputFloat("mu", &_simulator->m_FEMMaterial.mu)
-           || ImGui::InputFloat("lambda", &_simulator->m_FEMMaterial.lambda)
-           || (_simulator->m_FEMMaterial.type == FEMConstraint::Material::StVK
-               && ImGui::InputFloat("kappa", &_simulator->m_FEMMaterial.kappa))) {
+        if(ImGui::InputFloat("mu", &_simulator->_materialParams.mu)
+           || ImGui::InputFloat("lambda", &_simulator->_materialParams.lambda)
+           || (_simulator->_materialParams.type == FEMConstraint::Material::StVK
+               && ImGui::InputFloat("kappa", &_simulator->_materialParams.kappa))) {
             _simulator->updateConstraintParameters();
         }
         ImGui::PopID();

@@ -43,26 +43,26 @@ public:
         Attachment = 0,
         FEM
     };
-    Constraint(Type type) : m_type(type) {}
+    Constraint(Type type) : _type(type) {}
     virtual ~Constraint() = default;
-    Type type() const { return m_type; }
+    Type type() const { return _type; }
     virtual Float evaluateEnergyAndGradient(const EgVecXf& x, EgVecXf& gradient) const = 0;
     virtual void  getWLaplacianContribution(Containers::Array<EgTripletf>& laplacian_1d_triplets) const = 0;
 protected:
-    Type m_type;
+    Type _type;
 };
 
 class AttachmentConstraint : public Constraint {
 public:
     AttachmentConstraint(UnsignedInt vIdx, const EgVec3f& fixedPos, Float stiffness) :
-        Constraint(Constraint::Type::Attachment), m_vIdx(vIdx), m_fixedPos(fixedPos), m_stiffness(stiffness) {}
-    void setStiffness(Float stiffness) { m_stiffness = stiffness; }
+        Constraint(Constraint::Type::Attachment), _vIdx(vIdx), _fixedPos(fixedPos), _stiffness(stiffness) {}
+    void setStiffness(Float stiffness) { _stiffness = stiffness; }
     virtual Float evaluateEnergyAndGradient(const EgVecXf& x, EgVecXf& gradient) const;
     virtual void  getWLaplacianContribution(Containers::Array<EgTripletf>& triplets) const;
 private:
-    UnsignedInt m_vIdx;
-    EgVec3f       m_fixedPos;
-    Float       m_stiffness { 0 };
+    UnsignedInt _vIdx;
+    EgVec3f     _fixedPos;
+    Float       _stiffness { 0 };
 };
 
 class FEMConstraint : public Constraint {
@@ -82,20 +82,20 @@ public:
     virtual void  getWLaplacianContribution(Containers::Array<EgTripletf>& laplacian) const override;
 private:
     EgMat3f getMatrixDs(const EgVecXf& x) const;
-    void  singularValueDecomp(EgMat3f& U, EgVec3f& SIGMA, EgMat3f& V, const EgMat3f& A, bool signed_svd = true) const;
-    Material    m_material;
-    Float       m_mu;
-    Float       m_lambda;
-    Float       m_kappa;
-    const Float m_neohookean_clamp_value { 0.1f };
-public:                   /* public access for sag-free initializer */
-    Vector4ui m_vIDs;
-    EgMat3f     m_Dm;       /* [x0-x3|x1-x3|x2-x3]       */
-    EgMat3f     m_Dm_inv;   /* inverse of m_Dm           */
-    EgMat3f     m_Dm_inv_T; /* inverse transpose of m_Dm */
-    EgMat3x4f   m_G;        /* Q = m_Dr^(-T) * IND;      */
-    EgMat4f     m_L;
-    Float     m_w;        /* 1/6 det(Dm);              */
+    void    singularValueDecomp(EgMat3f& U, EgVec3f& SIGMA, EgMat3f& V, const EgMat3f& A, bool signed_svd = true) const;
+    Material    _material;
+    Float       _mu;
+    Float       _lambda;
+    Float       _kappa;
+    const Float _neohookean_clamp_value { 0.1f };
+public:                  /* public access for sag-free initializer */
+    Vector4ui _vIDs;
+    EgMat3f   _Dm;       /* [x0-x3|x1-x3|x2-x3]       */
+    EgMat3f   _Dm_inv;   /* inverse of _Dm           */
+    EgMat3f   _Dm_inv_T; /* inverse transpose of _Dm */
+    EgMat3x4f _G;        /* Q = m_Dr^(-T) * IND;      */
+    EgMat4f   _L;
+    Float     _w;        /* 1/6 det(Dm);              */
 };
 
 #define LOGJ_QUADRATIC_EXTENSION /* comment this line to get linear extention of log(J) */

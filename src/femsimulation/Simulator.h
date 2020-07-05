@@ -69,21 +69,21 @@ public: /* public accessible parameters */
         Float dt { 1.0f / 30.0f };
         int   subSteps { 5 };
         Float time { 0 };
-    } m_generalParams;
+    } _generalParams;
 
     struct {
         bool  enable     = false;
         Float timeEnable = 10; /* Disable if set to a negative number */
         Float magnitude  = 15;
         Float frequency  = 1;
-    } m_wind;
+    } _windParams;
 
     struct {
         int   type   = FEMConstraint::Material::NeoHookeanExtendLog;
         Float mu     = 40;
         Float lambda = 20;
         Float kappa  = 0; /* only for StVK material */
-    } m_FEMMaterial;
+    } _materialParams;
 
 private: /* simulation variables */
     TetMesh* m_mesh;
@@ -92,7 +92,7 @@ private: /* simulation variables */
     struct {
         EgVecXf y;
         EgVecXf externalForces;
-    } m_integration;
+    } _integration;
 
     struct {
         const Float       epsLARGE      = 1e-4f;
@@ -107,7 +107,7 @@ private: /* simulation variables */
         std::deque<EgVecXf> yQueue;
         std::deque<EgVecXf> sQueue;
         EgMatX3f            linearSolveRhsN3;
-    } m_lbfgs;
+    } _lbfgs;
 
     struct {
         const UnsignedInt iterations { 10 };
@@ -117,7 +117,7 @@ private: /* simulation variables */
         bool    firstIteration;
         Float   prefetchedEnergy;
         EgVecXf prefetchedGradient;
-    } m_lineSearch;
+    } _lineSearch;
 };
 } }
 

@@ -47,7 +47,7 @@ class Simulator;
 class TetMesh {
     friend class Simulator;
 public:
-    TetMesh(const char* meshFile, Float totalMass = 1.0f) : m_totalMass(totalMass) {
+    TetMesh(const char* meshFile, Float totalMass = 1.0f) : _totalMass(totalMass) {
         loadMesh(meshFile);
         setupShader();
     }
@@ -65,19 +65,19 @@ private:
 
     /* Public mesh data */
 public:
-    UnsignedInt m_numVerts; /* n */
-    Float       m_totalMass { 1.0f };
+    UnsignedInt _numVerts; /* n */
+    Float       _totalMass { 1.0f };
 
-    EgVecXf           m_positions_t0;  /* 1x3n  */
-    EgVecXf           m_positions;     /* 1x3n  */
-    EgVecXf           m_velocities;    /* 1x3n  */
-    EgDiagMatf m_massMatrix;    /* 3nx3n */
-    EgDiagMatf m_invMassMatrix; /* 3nx3n */
-    EgDiagMatf m_massMatrix1D;  /* nxn */
+    EgVecXf    _positions_t0;  /* 1x3n  */
+    EgVecXf    _positions;     /* 1x3n  */
+    EgVecXf    _velocities;    /* 1x3n  */
+    EgDiagMatf _massMatrix;    /* 3nx3n */
+    EgDiagMatf _invMassMatrix; /* 3nx3n */
+    EgDiagMatf _massMatrix1D;  /* nxn */
 
-    Containers::Array<UnsignedInt> m_fixedVerts;
-    Containers::Array<Vector3ui>   m_triangles;
-    Containers::Array<Vector4ui>   m_tets;
+    Containers::Array<UnsignedInt> _fixedVerts;
+    Containers::Array<Vector3ui>   _triangles;
+    Containers::Array<Vector4ui>   _tets;
 };
 } }
 
