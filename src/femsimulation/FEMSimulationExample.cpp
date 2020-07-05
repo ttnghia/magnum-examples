@@ -156,7 +156,7 @@ FEMSimulationExample::FEMSimulationExample(const Arguments& arguments) : Platfor
     //        Vector2{framebufferSize()}.aspectRatio(), 0.01f, 100.0f);
 
     /* Setup FEM solver */
-    _mesh.reset(new TetMesh("Data/longbar.mesh"));
+    _mesh.reset(new TetMesh("Data/squirrel.mesh"));
     _simulator.reset(new Simulator(_mesh.get()));
 }
 
@@ -338,7 +338,7 @@ void FEMSimulationExample::showMenu() {
     ImGui::Text("%3.2f FPS", static_cast<double>(ImGui::GetIO().Framerate));
     ImGui::Spacing();
     ImGui::PushItemWidth(120);
-    if(ImGui::CollapsingHeader("General Simulation Parameters", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if(ImGui::CollapsingHeader("General Simulation Parameters")) {
         ImGui::PushID("General-Parameters");
         ImGui::InputFloat("Gravity", &_simulator->m_generalParams.gravity[1]);
         ImGui::InputFloat("Damping", &_simulator->m_generalParams.damping);
@@ -353,7 +353,7 @@ void FEMSimulationExample::showMenu() {
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    if(ImGui::CollapsingHeader("Wind", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if(ImGui::CollapsingHeader("Wind")) {
         ImGui::PushID("Wind");
         ImGui::Checkbox("Enable", &_simulator->m_wind.enable);
         ImGui::InputFloat("Time enable", &_simulator->m_wind.timeEnable);
@@ -364,7 +364,7 @@ void FEMSimulationExample::showMenu() {
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    if(ImGui::CollapsingHeader("FEM Material", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if(ImGui::CollapsingHeader("FEM Material")) {
         ImGui::PushID("FEM-Material");
         const char* items[] = { "Corotational", "StVK", "NeoHookean-ExtendLog" };
         ImGui::PopItemWidth();

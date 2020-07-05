@@ -46,8 +46,9 @@ private:
     GL::Buffer                m_vertBuffer{ NoCreate };
     GL::Texture2D             m_colormap{ NoCreate };
     Shaders::MeshVisualizer3D m_shader{
-        Shaders::MeshVisualizer3D::Flag::Wireframe |
-        Shaders::MeshVisualizer3D::Flag::VertexId };
+        Shaders::MeshVisualizer3D::Flag::Wireframe
+        //                | Shaders::MeshVisualizer3D::Flag::VertexId
+    };
 
     /* Public mesh data */
 public:

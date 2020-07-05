@@ -60,7 +60,7 @@ void TetMesh::loadMesh(const String& meshFile) {
             m_positions_t0.resize(m_numVerts * 3);
             for(u32 i = 0; i < m_numVerts; ++i) {
                 infile >> pos[0] >> pos[1] >> pos[2] >> ignore;
-                m_positions_t0.block3(i) = pos;
+                m_positions_t0.block3(i) = pos * 30;
             }
         } else if(strcmp(buffer, "Triangles") == 0) {
             u32 numFaces;
@@ -95,14 +95,16 @@ void TetMesh::loadMesh(const String& meshFile) {
     float max_x = -1e10f;
     for(u32 idx = 0; idx < m_numVerts; ++idx) {
         const Vec3f& v = m_positions_t0.block3(idx);
-        if(max_x < v.x()) { max_x = v.x(); }
+        //        if(max_x < v.x()) { max_x = v.x(); }
+        if(max_x < v.y()) { max_x = v.y(); }
     }
 
     m_fixedVerts.clear();
     /* Fix the vertices that have x ~~ max_x */
     for(u32 idx = 0; idx < m_numVerts; ++idx) {
         const Vec3f& v = m_positions_t0.block3(idx);
-        if(std::abs(max_x - v.x()) < 1e-4f) {
+        //        if(std::abs(max_x - v.x()) < 1e-4f) {
+        if(std::abs(max_x - v.y()) < 1e-1f) {
             m_fixedVerts.push_back(idx);
         }
     }
@@ -138,11 +140,12 @@ void TetMesh::setupShader() {
         .setStorage(1, GL::TextureFormat::RGB8, size)
         .setSubImage(0, {}, ImageView2D{ PixelFormat::RGB8Unorm, size, map });
 
-    m_shader.setColor(Color3{ 1, 1, 1 })
-        .setWireframeColor(Color3{ 1, 1, 1 })
-        .setWireframeWidth(2.0f)
-        .setColorMapTransformation(0.0f, 1.0f / m_numVerts)
-        .bindColorMapTexture(m_colormap);
+    m_shader.setColor(Color3{ 0, 1, 1 })
+        .setWireframeColor(Color3{ 1, 0, 0 })
+        .setWireframeWidth(1.5f);
+    //        .setColorMapTransformation(0.0f, 1.0f / m_numVerts);
+
+    //        .bindColorMapTexture(m_colormap);;
 }
 
 void TetMesh::draw(ArcBallCamera* camera, const Vector2& viewportSize) {
