@@ -97,6 +97,9 @@ void Simulator::updateConstraintParameters() {
 }
 
 void Simulator::initConstraints() {
+    if(m_mesh->m_fixedVerts.size() == 0) {
+        Fatal{} << "No fixed vertex found. You must set up fixed vertices.";
+    }
     /* Setup attachment constraints */
     for(const auto vIdx : m_mesh->m_fixedVerts) {
         const Vec3f fixedPoint = m_mesh->m_positions.block3(vIdx);

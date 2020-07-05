@@ -79,6 +79,7 @@ private:
     void mouseScrollEvent(MouseScrollEvent& event) override;
     void textInputEvent(TextInputEvent& event) override;
 
+    void setupScene(Int sceneId);
     void resetSimulation();
     void showMenu();
 
@@ -327,6 +328,10 @@ void FEMSimulationExample::textInputEvent(TextInputEvent& event) {
     }
 }
 
+void FEMSimulationExample::setupScene(Int sceneId) {
+    //
+}
+
 void FEMSimulationExample::resetSimulation() {
     _pause  = true;
     _status = "Simulation paused";
@@ -336,13 +341,12 @@ void FEMSimulationExample::resetSimulation() {
 void FEMSimulationExample::showMenu() {
     ImGui::SetNextWindowBgAlpha(0.5f);
     ImGui::Begin("Options", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Text("Hide/show menu: H | Exit: ESC");
+    ImGui::Text("Hide/show menu: H");
     ImGui::Text("%3.2f FPS", static_cast<double>(ImGui::GetIO().Framerate));
     ImGui::Spacing();
     ImGui::PushItemWidth(120);
     if(ImGui::CollapsingHeader("General Simulation Parameters")) {
         ImGui::PushID("General-Parameters");
-        ImGui::InputFloat("Gravity", &_simulator->m_generalParams.gravity[1]);
         ImGui::InputFloat("Damping", &_simulator->m_generalParams.damping);
         if(ImGui::InputFloat("Attachement Stiffness", &_simulator->m_generalParams.attachmentStiffness)) {
             _simulator->updateConstraintParameters();
@@ -353,8 +357,7 @@ void FEMSimulationExample::showMenu() {
         ImGui::PopID();
     }
     ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
+
     if(ImGui::CollapsingHeader("Wind")) {
         ImGui::PushID("Wind");
         ImGui::Checkbox("Enable", &_simulator->m_wind.enable);
@@ -364,8 +367,7 @@ void FEMSimulationExample::showMenu() {
         ImGui::PopID();
     }
     ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
+
     if(ImGui::CollapsingHeader("FEM Material")) {
         ImGui::PushID("FEM-Material");
         const char* items[] = { "Corotational", "StVK", "NeoHookean-ExtendLog" };
@@ -384,8 +386,6 @@ void FEMSimulationExample::showMenu() {
     }
 
     ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
     ImGui::PopItemWidth();
 
     if(ImGui::CollapsingHeader("Timing", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -403,19 +403,19 @@ void FEMSimulationExample::showMenu() {
         ImGui::PopID();
     }
     ImGui::Text(_status.c_str());
-    if(ImGui::Button("Pause/Resume")) {
-        _pause ^= true;
-        if(_pause) { _status = "Status: Paused"; }
-    }
-    ImGui::SameLine();
-    if(ImGui::Button("Reset")) {
-        resetSimulation();
-    }
-    ImGui::Spacing();
     ImGui::Separator();
-    ImGui::Spacing();
     if(ImGui::Button("Reset camera")) {
         _camera->reset();
+    }
+    ImGui::SameLine();
+    if(ImGui::Button("Reset Simulation")) {
+        resetSimulation();
+    }
+    ImGui::SameLine();
+    if((_pause && ImGui::Button("Resume Simulation"))
+       || (!_pause && ImGui::Button("Pause Simulation"))) {
+        _pause ^= true;
+        if(_pause) { _status = "Status: Paused"; }
     }
 }
 } }
