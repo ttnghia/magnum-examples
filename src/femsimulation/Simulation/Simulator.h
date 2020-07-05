@@ -22,7 +22,7 @@
 
 #include <deque>
 
-/****************************************************************************************************/
+namespace Magnum { namespace Examples {
 class Simulator {
 public:
     Simulator(TetMesh* mesh) : m_mesh(mesh) { CORRADE_INTERNAL_ASSERT(m_mesh != nullptr); }
@@ -105,3 +105,4 @@ private: /* simulation variables */
         VecXf prefetchedGradient;
     } m_lineSearch;
 };
+} }

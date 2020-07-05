@@ -39,6 +39,7 @@ endif()
 
 find_package(Corrade REQUIRED Main)
 find_package(Magnum REQUIRED
+    DebugTools
     GL
     MeshTools
     Primitives
@@ -65,12 +66,13 @@ add_executable(magnum-femsimulation WIN32
     ${FEMSimulation_RESOURCES}
     )
 
-include_directories(../fluidsimulation3d/DrawableObjects)
+include_directories(../fluidsimulation3d)
 include_directories(D:/Projects/InverseSimulation/Code/InvFEM/Libs/Eigen3/include/eigen3/)
 target_link_libraries(magnum-femsimulation PRIVATE
     Eigen3::Eigen
     Corrade::Main
     Magnum::Application
+    Magnum::DebugTools
     Magnum::GL
     Magnum::Magnum
     Magnum::MeshTools

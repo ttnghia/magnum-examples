@@ -18,7 +18,7 @@
 
 #include "Simulation/MathDefinitions.h"
 
-/****************************************************************************************************/
+namespace Magnum { namespace Examples {
 class Constraint {
 public:
     enum Type {
@@ -34,7 +34,6 @@ protected:
     Type m_type;
 };
 
-/****************************************************************************************************/
 class AttachmentConstraint : public Constraint {
 public:
     AttachmentConstraint(u32 vIdx, const Vec3f& fixedPos, float stiffness) :
@@ -48,7 +47,6 @@ private:
     float m_stiffness { 0 };
 };
 
-/****************************************************************************************************/
 class FEMConstraint : public Constraint {
 public:
     enum Material {
@@ -57,10 +55,10 @@ public:
         NeoHookeanExtendLog
     };
     FEMConstraint(const Vec4ui& vIDs, const VecXf& x);
-    void                    setFEMMaterial(Material type, float mu, float lambda, float kappa);
-    float                   getMassContribution(VecXf& m, VecXf& m_1d);
-    std::pair<Mat3f, float> computeStressAndEnergyDensity(const Mat3f& F, bool computeEnergy = false) const;
-    void                    computeLaplacianWeight();
+    void  setFEMMaterial(Material type, float mu, float lambda, float kappa);
+    float getMassContribution(VecXf& m, VecXf& m_1d);
+    float computeStressAndEnergyDensity(const Mat3f& F, Mat3f& P) const;
+    void  computeLaplacianWeight();
 
     virtual float evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) const override;
     virtual void  getWLaplacianContribution(StdVT<Tripletf>& laplacian) const override;
@@ -83,3 +81,4 @@ public:                 /* public access for sag-free initializer */
 };
 
 #define LOGJ_QUADRATIC_EXTENSION /* comment this line to get linear extention of log(J) */
+} }

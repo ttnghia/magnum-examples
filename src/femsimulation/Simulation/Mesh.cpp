@@ -32,7 +32,7 @@
 #include "../arcball/ArcBallCamera.h"
 #include "Simulation/Mesh.h"
 
-/****************************************************************************************************/
+namespace Magnum { namespace Examples {
 void TetMesh::loadMesh(const String& meshFile) {
     m_triangles.clear();
     m_tets.clear();
@@ -112,7 +112,6 @@ void TetMesh::loadMesh(const String& meshFile) {
     Debug() << "Loaded tet mesh from" << meshFile.c_str();
 }
 
-/****************************************************************************************************/
 void TetMesh::setupShader() {
     m_vertBuffer = GL::Buffer{};
     m_mesh       = GL::Mesh{};
@@ -146,7 +145,6 @@ void TetMesh::setupShader() {
         .bindColorMapTexture(m_colormap);
 }
 
-/****************************************************************************************************/
 void TetMesh::draw(ArcBallCamera* camera, const Vector2& viewportSize) {
     Containers::ArrayView<const float> data(reinterpret_cast<const float*>(m_positions.data()),
                                             m_positions.size());
@@ -157,9 +155,9 @@ void TetMesh::draw(ArcBallCamera* camera, const Vector2& viewportSize) {
         .draw(m_mesh);
 }
 
-/****************************************************************************************************/
 void TetMesh::reset() {
     m_positions = m_positions_t0;
     m_velocities.resize(3 * m_numVerts);
     m_velocities.setZero();
 }
+} }

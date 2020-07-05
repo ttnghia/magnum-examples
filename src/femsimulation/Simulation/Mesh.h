@@ -24,7 +24,7 @@
 #include <Magnum/Math/Matrix4.h>
 #include <Magnum/Shaders/MeshVisualizer.h>
 
-/****************************************************************************************************/
+namespace Magnum { namespace Examples {
 class ArcBallCamera;
 class Simulator;
 class TetMesh {
@@ -65,3 +65,4 @@ public:
     StdVT<Vec3ui> m_triangles;
     StdVT<Vec4ui> m_tets;
 };
+} }

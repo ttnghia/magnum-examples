@@ -16,7 +16,7 @@
 
 #include "Simulator.h"
 
-/****************************************************************************************************/
+namespace Magnum { namespace Examples {
 void Simulator::reset() {
     /* Reset timing */
     m_generalParams.time = 0;
@@ -28,7 +28,6 @@ void Simulator::reset() {
     m_mesh->reset();
 }
 
-/****************************************************************************************************/
 void Simulator::advanceStep() {
     if(m_constraints.size() == 0) {
         initConstraints();
@@ -67,7 +66,6 @@ void Simulator::advanceStep() {
     m_generalParams.time += m_generalParams.dt;
 }
 
-/****************************************************************************************************/
 void Simulator::updateConstraintParameters() {
     for(const auto c: m_constraints) {
         if(c->type() == Constraint::Type::FEM) {
@@ -83,7 +81,6 @@ void Simulator::updateConstraintParameters() {
     m_lbfgs.prefactored = false;
 }
 
-/****************************************************************************************************/
 void Simulator::initConstraints() {
     /* Setup attachment constraints */
     for(const auto vIdx : m_mesh->m_fixedVerts) {
@@ -118,7 +115,6 @@ void Simulator::initConstraints() {
     }
 }
 
-/****************************************************************************************************/
 void Simulator::calculateExternalForce(bool addWind) {
     Vec3f force = m_generalParams.gravity;
     if(addWind) {
@@ -131,7 +127,6 @@ void Simulator::calculateExternalForce(bool addWind) {
     m_integration.externalForces = m_mesh->m_massMatrix * m_integration.externalForces;
 }
 
-/****************************************************************************************************/
 bool Simulator::performLBFGSOneIteration(VecXf& x) {
     const float historyLength = m_lbfgs.historyLength;
     const float epsLARGE      = m_lbfgs.epsLARGE;
@@ -208,7 +203,6 @@ bool Simulator::performLBFGSOneIteration(VecXf& x) {
     return converged;
 }
 
-/****************************************************************************************************/
 float Simulator::evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) {
     const float hSqr          = m_generalParams.dt * m_generalParams.dt;
     const VecXf xmy           = x - m_integration.y;
@@ -225,7 +219,6 @@ float Simulator::evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) {
     return energy;
 }
 
-/****************************************************************************************************/
 VecXf Simulator::lbfgsKernelLinearSolve(const VecXf& rhs) {
     auto& rhsN3 = m_lbfgs.linearSolveRhsN3;
     rhsN3.resize(rhs.size() / 3, 3);
@@ -238,7 +231,6 @@ VecXf Simulator::lbfgsKernelLinearSolve(const VecXf& rhs) {
     return r;
 }
 
-/****************************************************************************************************/
 float Simulator::linesearch(const VecXf& x, float energy, const VecXf& gradDir,
                             const VecXf& descentDir, float& nextEnergy, VecXf& nextGradDir) {
     VecXf x_plus_tdx(m_mesh->m_numVerts * 3);
@@ -263,7 +255,6 @@ float Simulator::linesearch(const VecXf& x, float energy, const VecXf& gradDir,
     return t;
 }
 
-/****************************************************************************************************/
 void Simulator::prefactorize() {
     if(!m_lbfgs.prefactored) {
         /* Compute the Laplacian matrix */
@@ -294,3 +285,4 @@ void Simulator::prefactorize() {
         m_lbfgs.prefactored = true;
     }
 }
+} }

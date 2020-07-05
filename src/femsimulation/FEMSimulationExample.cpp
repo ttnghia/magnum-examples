@@ -1,32 +1,75 @@
-/**
- * Copyright 2020 Nghia Truong <nghiatruong.vn@gmail.com>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+/*
+    This file is part of Magnum.
+
+    Original authors — credit is appreciated but not required:
+
+        2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020 —
+            Vladimír Vondruš <mosra@centrum.cz>
+        2020 — Nghia Truong <nghiatruong.vn@gmail.com>
+
+    This is free and unencumbered software released into the public domain.
+
+    Anyone is free to copy, modify, publish, use, compile, sell, or distribute
+    this software, either in source code form or as a compiled binary, for any
+    purpose, commercial or non-commercial, and by any means.
+
+    In jurisdictions that recognize copyright laws, the author or authors of
+    this software dedicate any and all copyright interest in the software to
+    the public domain. We make this dedication for the benefit of the public
+    at large and to the detriment of our heirs and successors. We intend this
+    dedication to be an overt act of relinquishment in perpetuity of all
+    present and future rights to this software under copyright law.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+    THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+    IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+    CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include <Corrade/Containers/Pointer.h>
 #include <Magnum/GL/DefaultFramebuffer.h>
 #include <Magnum/GL/Renderer.h>
+#include <Magnum/GL/Context.h>
+#include <Magnum/GL/Version.h>
+#include <Magnum/Math/Vector2.h>
+#include <Magnum/ImGuiIntegration/Context.hpp>
+#include <Magnum/Platform/Sdl2Application.h>
 
+#include "../arcball/ArcBallCamera.h"
+#include "../fluidsimulation3d/DrawableObjects/WireframeObjects.h"
 #include "Simulation/Mesh.h"
 #include "Simulation/Simulator.h"
 
-class Application : public ImGuiApplication {
+#include <chrono>
+
+namespace Magnum { namespace Examples {
+class Timer {
 public:
-    explicit Application(const Arguments& arguments);
+    Timer() = default;
+    void tick() { _startTime = std::chrono::high_resolution_clock::now(); }
+    float tock() {
+        return std::chrono::duration<float, std::milli>(
+            std::chrono::high_resolution_clock::now() - _startTime).count();
+    }
+
+private:
+    std::chrono::high_resolution_clock::time_point _startTime;
+};
+
+namespace {
+constexpr std::size_t FrameTimeHistory { 30 };
+}
+using namespace Math::Literals;
+
+class FEMSimulationExample : public Platform::Application {
+public:
+    explicit FEMSimulationExample(const Arguments& arguments);
 
 private:
     void viewportEvent(ViewportEvent& event) override;
+    void drawEvent() override;
     void keyPressEvent(KeyEvent& event) override;
     void keyReleaseEvent(KeyEvent& event) override;
     void mousePressEvent(MouseEvent& event) override;
@@ -35,261 +78,139 @@ private:
     void mouseScrollEvent(MouseScrollEvent& event) override;
     void textInputEvent(TextInputEvent& event) override;
 
-    void beginFrame();
-    void endFrame();
-
-    void showMenuHeader();
-    void showMenuFooter(bool bButtonResetCamera = true);
-
-    void viewportEvent(ViewportEvent& event) override;
-    void keyPressEvent(KeyEvent& event) override;
-    void mousePressEvent(MouseEvent& event) override;
-    void mouseMoveEvent(MouseMoveEvent& event) override;
-    void mouseScrollEvent(MouseScrollEvent& event) override;
-
-    void setupCamera();
-
-    /* Window control */
-    bool   m_bVsync { true };
-    Color3 m_BkgColor { 0.35f };
-
-    /* Scene and drawable group */
-    Scene3D                     m_Scene;
-    SceneGraph::DrawableGroup3D m_Drawables;
-
-    /* Ground grid */
-    Containers::Pointer<Grid> m_Grid;
-
-    /* Camera helpers */
-    Vector3 m_DefaultCamPosition { 0.0f, 1.5f, 8.0f };
-    Vector3 m_DefaultCamTarget { 0.0f, 1.0f, 0.0f };
-    Containers::Pointer<ArcBallCamera> m_Camera;
-
-    /* Window control */
-    bool m_bShowMenu { true };
-    ImGuiIntegration::Context m_ImGuiContext{ NoCreate };
-
-    void drawEvent() override;
-    void keyPressEvent(KeyEvent& event) override;
+    void resetSimulation();
     void showMenu();
 
-    void resetSimulation();
-    void initializeSagFree();
+    /* Scene objects */
+    Scene3D                            _scene;
+    SceneGraph::DrawableGroup3D        _drawables;
+    ImGuiIntegration::Context          _ImGuiContext{ NoCreate };
+    Containers::Pointer<ArcBallCamera> _camera;
+    Containers::Pointer<WireframeGrid> _grid;
+    bool _showMenu { true };
 
-    Containers::Pointer<Simulator> m_simulator;
-    Timer  m_timer;
-    String m_status { "Status: Paused" };
-    bool   m_pause { true };
-
-    /* The simulated mesh */
-    Containers::Pointer<TetMesh> m_mesh;
+    /* Simulation */
+    Containers::Pointer<Simulator> _simulator;
+    Containers::Pointer<TetMesh>   _mesh;
+    Timer  _timer;
+    String _status { "Status: Paused" };
+    bool   _pause { true };
 
     /* For plotting frame simulation time */
-    static inline constexpr u64 sMaxFrames { 30 };
-    float  m_frameTime[sMaxFrames];
-    float  m_lastFrameTime{ 0 };
-    size_t m_offset { 0 };
+    float  _frameTime[FrameTimeHistory];
+    float  _lastFrameTime{ 0 };
+    size_t _offset { 0 };
 };
 
-/****************************************************************************************************/
-ImGuiApplication::ImGuiApplication(const std::string& title, const Arguments& arguments,
-                                   const Vector2i& defaultWindowSize) :
-    GLApplication{title, arguments, defaultWindowSize} {
+FEMSimulationExample::FEMSimulationExample(const Arguments& arguments) : Platform::Application{arguments, NoCreate} {
     /* Setup window */
-    create(Configuration{}
-               .setTitle(title)
-               .setSize(defaultWindowSize)
-               .setWindowFlags(Configuration::WindowFlag::Resizable),
-           GLConfiguration{}.setSampleCount(this->dpiScaling({}).max() < 2.0f ? 8 : 2));
-    MAGNUM_ASSERT_GL_VERSION_SUPPORTED(GL::Version::GL330);
+    const Vector2 sdpi = this->dpiScaling({});
+    Configuration conf;
+    conf.setTitle("Finite Element Simulation Example")
+        .setSize(conf.size(), sdpi)
+        .setWindowFlags(Configuration::WindowFlag::Resizable);
+    GLConfiguration glConf;
+    glConf.setSampleCount(sdpi.max() < 2.0f ? 8 : 2);
+    if(!tryCreate(conf, glConf)) {
+        create(conf, glConf.setSampleCount(0));
+    }
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
-    GL::Renderer::setClearColor(m_BkgColor);
     setSwapInterval(1);
+    setMinimalLoopPeriod(16);
 
-    /* Move the window to center */
-    GLFWmonitor* const monitor = glfwGetPrimaryMonitor();
-    const GLFWvidmode* mode    = glfwGetVideoMode(monitor);
-    CORRADE_INTERNAL_ASSERT(mode != nullptr);
-    int monitorX, monitorY;
-    glfwGetMonitorPos(monitor, &monitorX, &monitorY);
-    glfwSetWindowPos(window(),
-                     monitorX + (mode->width - defaultWindowSize.x()) / 2,
-                     monitorY + (mode->height - defaultWindowSize.y()) / 2);
-
-    /* Setup scene objects and camera */
-    m_Grid.emplace(&m_Scene, &m_Drawables);
-
-    /* Configure camera */
-    setupCamera();
-
-    /* Setup ImGui and ImGuizmo */
-    m_ImGuiContext = ImGuiIntegration::Context(Vector2{ windowSize() } / dpiScaling(),
-                                               windowSize(), framebufferSize());
+    /* Setup ImGui, load a better font */
+    ImGui::CreateContext();
     ImGui::StyleColorsDark();
 
-    /* Setup proper blending to be used by ImGui. There's a great chance
-       you'll need this exact behavior for the rest of your scene. If not, set
-       this only for the drawFrame() call. */
-    GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha,
-                                   GL::Renderer::BlendFunction::OneMinusSourceAlpha);
+    ImFontConfig fontConfig;
+    fontConfig.FontDataOwnedByAtlas = false;
+    const Vector2                     size = Vector2{ windowSize() } / sdpi;
+    Utility::Resource                 rs{ "data" };
+    Containers::ArrayView<const char> font = rs.getRaw("SourceSansPro-Regular.ttf");
+    ImGui::GetIO().Fonts->AddFontFromMemoryTTF(
+        const_cast<char*>(font.data()), Int(font.size()), 16.0f * framebufferSize().x() / size.x(), &fontConfig);
+
+    _ImGuiContext = ImGuiIntegration::Context(*ImGui::GetCurrentContext(),
+                                              Vector2{ windowSize() } / sdpi, windowSize(), framebufferSize());
+
+    /* Setup proper blending to be used by ImGui */
+    GL::Renderer::setBlendEquation(
+        GL::Renderer::BlendEquation::Add, GL::Renderer::BlendEquation::Add);
+    GL::Renderer::setBlendFunction(
+        GL::Renderer::BlendFunction::SourceAlpha,
+        GL::Renderer::BlendFunction::OneMinusSourceAlpha);
+
+    /* Setup scene objects and camera */
+    _grid.emplace(&_scene, &_drawables);
+    _grid->transform(Matrix4::translation(Vector3{ 0, -30, -100 }) * Matrix4::scaling(Vector3{ 30 }));
+
+    /* Configure camera */
+    const Vector3 eye = Vector3{ -40, 20, 65 };
+    const Vector3 viewCenter { -10, -7, 0 };
+    const Vector3 up  = Vector3::yAxis();
+    const Deg     fov = 45.0_degf;
+    _camera.emplace(_scene, eye, viewCenter, up, fov, windowSize(), framebufferSize());
+    _camera->setLagging(0.85f);
+
+    //  _projectionMatrix = Matrix4::perspectiveProjection(fov,
+    //        Vector2{framebufferSize()}.aspectRatio(), 0.01f, 100.0f);
+
+    /* Setup FEM solver */
+    _mesh.reset(new TetMesh("Data/longbar.mesh"));
+    _simulator.reset(new Simulator(_mesh.get()));
 }
 
-/****************************************************************************************************/
-void GLApplication::viewportEvent(ViewportEvent& event) {
+void FEMSimulationExample::viewportEvent(ViewportEvent& event) {
     const auto newBufferSize = event.framebufferSize();
 
     /* Resize the main framebuffer */
     GL::defaultFramebuffer.setViewport({ {}, newBufferSize });
 
     /* Resize camera */
-    m_Camera->reshape(event.windowSize(), event.framebufferSize());
-}
-
-/****************************************************************************************************/
-void GLApplication::keyPressEvent(KeyEvent& event) {
-    switch(event.key()) {
-        case  KeyEvent::Key::V:
-            m_bVsync ^= true;
-            setSwapInterval(m_bVsync);
-            event.setAccepted(true);
-            break;
-        case KeyEvent::Key::S:
-            if(m_Camera->lagging() > 0.0f) {
-                Debug{} << "Disable camera smooth navigation";
-                m_Camera->setLagging(0.0f);
-            } else {
-                Debug{} << "Enable camera smooth navigation";
-                m_Camera->setLagging(0.85f);
-            }
-            break;
-        case KeyEvent::Key::R:
-            m_Camera->reset();
-            break;
-        case KeyEvent::Key::Esc:
-            exit(0);
-    }
-}
-
-/****************************************************************************************************/
-void GLApplication::mousePressEvent(MouseEvent& event) {
-    m_Camera->initTransformation(event.position());
-}
-
-/****************************************************************************************************/
-void GLApplication::mouseMoveEvent(MouseMoveEvent& event) {
-    if(!event.buttons()) { return; }
-    if(event.buttons() & MouseMoveEvent::Button::Left) {
-        m_Camera->rotate(event.position());
-    } else {
-        m_Camera->translate(event.position());
-    }
-    event.setAccepted();
-}
-
-/****************************************************************************************************/
-void GLApplication::mouseScrollEvent(MouseScrollEvent& event) {
-    const float delta = event.offset().y();
-    if(std::abs(delta) < 1.0e-2f) {
-        return;
-    }
-    m_Camera->zoom(delta);
-    event.setAccepted();
-}
-
-/****************************************************************************************************/
-void GLApplication::setupCamera() {
-    m_Camera.emplace(m_Scene, m_DefaultCamPosition, m_DefaultCamTarget, Vector3::yAxis(),
-                     45.0_degf, windowSize(), framebufferSize());
-    m_Camera->setLagging(0.85f);
-}
-
-/****************************************************************************************************/
-void ImGuiApplication::viewportEvent(ViewportEvent& event) {
-    GLApplication::viewportEvent(event);
+    _camera->reshape(event.windowSize(), newBufferSize);
 
     /* Relayout ImGui */
-    m_ImGuiContext.relayout(Vector2{ event.windowSize() } / event.dpiScaling(),
-                            event.windowSize(), event.framebufferSize());
+    _ImGuiContext.relayout(Vector2{ event.windowSize() } / event.dpiScaling(),
+                           event.windowSize(), event.framebufferSize());
 }
 
-/****************************************************************************************************/
-void ImGuiApplication::keyPressEvent(KeyEvent& event) {
-    if(m_ImGuiContext.handleKeyPressEvent(event)) {
-        event.setAccepted(true);
-    } else {
-        GLApplication::keyPressEvent(event);
-        if(!event.isAccepted()) {
-            if(event.key() == KeyEvent::Key::H) {
-                m_bShowMenu ^= true;
-                event.setAccepted(true);
-            }
+void FEMSimulationExample::drawEvent() {
+    /* Run the simulation 1 step */
+    if(!_pause) {
+        _timer.tick();
+        _simulator->advanceStep();
+        _timer.tock();
+        static u32 count { 0 };
+        ++count;
+        if(count == 10) {
+            _frameTime[_offset] = _timer.tock();
+            _lastFrameTime      = _frameTime[_offset];
+            _offset = (_offset + 1) % FrameTimeHistory;
+            count   = 0;
         }
+        char buff[128];
+        sprintf(buff, "Running simulation (t = %.2f (s))", _simulator->m_generalParams.time);
+        _status = String(buff);
     }
-}
 
-void ImGuiApplication::keyReleaseEvent(KeyEvent& event) {
-    if(m_ImGuiContext.handleKeyReleaseEvent(event)) {
-        event.setAccepted(true);
-    }
-}
-
-/****************************************************************************************************/
-void ImGuiApplication::mousePressEvent(MouseEvent& event) {
-    if(m_ImGuiContext.handleMousePressEvent(event)) {
-        event.setAccepted(true);
-    } else {
-        GLApplication::mousePressEvent(event);
-    }
-}
-
-/****************************************************************************************************/
-void ImGuiApplication::mouseReleaseEvent(MouseEvent& event) {
-    if(m_ImGuiContext.handleMouseReleaseEvent(event)) {
-        event.setAccepted(true);
-    }
-}
-
-/****************************************************************************************************/
-void ImGuiApplication::mouseMoveEvent(MouseMoveEvent& event) {
-    if(m_ImGuiContext.handleMouseMoveEvent(event)) {
-        event.setAccepted(true);
-    } else {
-        GLApplication::mouseMoveEvent(event);
-    }
-}
-
-/****************************************************************************************************/
-void ImGuiApplication::mouseScrollEvent(MouseScrollEvent& event) {
-    if(m_ImGuiContext.handleMouseScrollEvent(event)) {
-        /* Prevent scrolling the page */
-        event.setAccepted(true);
-    } else {
-        GLApplication::mouseScrollEvent(event);
-    }
-}
-
-/****************************************************************************************************/
-void ImGuiApplication::textInputEvent(TextInputEvent& event) {
-    if(m_ImGuiContext.handleTextInputEvent(event)) {
-        event.setAccepted(true);
-    }
-}
-
-/****************************************************************************************************/
-void ImGuiApplication::beginFrame() {
-    m_ImGuiContext.newFrame();
+    /* Draw frame */
+    GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
+    _ImGuiContext.newFrame();
     /* Enable text input, if needed */
     if(ImGui::GetIO().WantTextInput && !isTextInputActive()) {
         startTextInput();
     } else if(!ImGui::GetIO().WantTextInput && isTextInputActive()) {
         stopTextInput();
     }
-}
+    _camera->update();
+    _camera->draw(_drawables); /* draw grid */
+    _mesh->draw(_camera.get(), Vector2{ framebufferSize() });
+    if(_showMenu) {
+        showMenu();
+    }
 
-/****************************************************************************************************/
-void ImGuiApplication::endFrame() {
-    /* Update application cursor */
-    m_ImGuiContext.updateApplicationCursor(*this);
+    /* Update cursor */
+    _ImGuiContext.updateApplicationCursor(*this);
 
     /* Set appropriate states. If you only draw imgui UI, it is sufficient to do this once in the constructor. */
     GL::Renderer::enable(GL::Renderer::Feature::Blending);
@@ -297,135 +218,136 @@ void ImGuiApplication::endFrame() {
     GL::Renderer::disable(GL::Renderer::Feature::DepthTest);
     GL::Renderer::enable(GL::Renderer::Feature::ScissorTest);
 
-    m_ImGuiContext.drawFrame();
+    _ImGuiContext.drawFrame();
 
     /* Reset state. Only needed if you want to draw something else with different state next frame. */
     GL::Renderer::disable(GL::Renderer::Feature::ScissorTest);
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
     GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
     GL::Renderer::disable(GL::Renderer::Feature::Blending);
-}
 
-/****************************************************************************************************/
-void ImGuiApplication::showMenuHeader() {
-    ImGui::SetNextWindowBgAlpha(0.5f);
-    ImGui::Begin("Options", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Text("Hide/show menu: H | Exit: ESC");
-    ImGui::Text("%3.2f FPS", static_cast<double>(ImGui::GetIO().Framerate));
-    ImGui::SameLine(100);
-    if(ImGui::Checkbox("VSync", &m_bVsync)) {
-        setSwapInterval(m_bVsync);
-    }
-    ImGui::Spacing();
-    ImGui::Checkbox("Render grid", &m_Grid->enabled());
-    if(ImGui::ColorEdit3("Background color", m_BkgColor.data())) {
-        GL::Renderer::setClearColor(m_BkgColor);
-    }
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-}
-
-void ImGuiApplication::showMenuFooter(bool bButtonResetCamera) {
-    if(bButtonResetCamera) {
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-        if(ImGui::Button("Reset camera")) {
-            m_Camera->reset();
-        }
-    }
-    ImGui::End();
-}
-
-Application::Application(const Arguments& arguments) :
-    ImGuiApplication{"Sag-Free Initialization for Deformable Simulation", arguments} {
-    /* Change camera */
-    m_DefaultCamPosition = Vector3(-40, 20, 65);
-    m_DefaultCamTarget   = Vector3(-10, -7, 0);
-    setupCamera();
-
-    /* Change grid */
-    m_Grid->transform(Matrix4::translation(Vector3{ 0, -30, -100 }) * Matrix4::scaling(Vector3{ 30 }));
-
-    /* Setup mesh and simulator */
-    m_mesh.reset(new TetMesh("Data/longbar.mesh"));
-    m_simulator.reset(new Simulator(m_mesh.get()));
-}
-
-void Application::drawEvent() {
-    /* Run the simulation 1 step */
-    if(!m_pause) {
-        m_timer.tick();
-        m_simulator->advanceStep();
-        m_timer.tock();
-        static u32 count { 0 };
-        ++count;
-        if(count == 10) {
-            m_frameTime[m_offset] = m_timer.getLastRunTime();
-            m_lastFrameTime       = m_frameTime[m_offset];
-            m_offset = (m_offset + 1) % sMaxFrames;
-            count    = 0;
-        }
-        char buff[128];
-        sprintf(buff, "Status: Running simulation (t = %.2f (s))", m_simulator->m_generalParams.time);
-        m_status = String(buff);
-    }
-
-    /* Draw everything */
-    GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
-    ImGuiApplication::beginFrame();
-    m_Camera->update();
-    m_Camera->draw(m_Drawables); /* draw grid */
-    m_mesh->draw(m_Camera.get(), Vector2{ framebufferSize() });
-    if(m_bShowMenu) {
-        showMenuHeader();
-        showMenu();
-        showMenuFooter();
-    }
-    ImGuiApplication::endFrame();
     swapBuffers();
     redraw();
 }
 
-void Application::keyPressEvent(KeyEvent& event) {
-    ImGuiApplication::keyPressEvent(event);
-    if(event.isAccepted()) {
+void FEMSimulationExample::keyPressEvent(KeyEvent& event) {
+    if(_ImGuiContext.handleKeyPressEvent(event)) {
+        event.setAccepted(true);
         return;
     }
     switch(event.key()) {
+        case KeyEvent::Key::H:
+            _showMenu ^= true;
+            event.setAccepted(true);
+            break;
+        case KeyEvent::Key::S:
+            if(_camera->lagging() > 0.0f) {
+                Debug{} << "Disable camera smooth navigation";
+                _camera->setLagging(0.0f);
+            } else {
+                Debug{} << "Enable camera smooth navigation";
+                _camera->setLagging(0.85f);
+            }
+            break;
+        case KeyEvent::Key::R:
+            _camera->reset();
+            break;
         case KeyEvent::Key::Space:
-            m_pause ^= true;
-            if(m_pause) { m_status = "Status: Paused"; }
+            _pause ^= true;
+            if(_pause) { _status = "Simulation paused"; }
             break;
         case KeyEvent::Key::F5:
             resetSimulation();
             break;
-        case KeyEvent::Key::F8:
-            if(!m_pause) {
-                m_status = "Error: Cannot run sag-free init. after started simulation\n"
-                           "(please reset the simulation first)";
-            } else {
-                initializeSagFree();
-            }
-            break;
-        default:;
     }
 }
 
-void Application::showMenu() {
+void FEMSimulationExample::keyReleaseEvent(KeyEvent& event) {
+    if(_ImGuiContext.handleKeyReleaseEvent(event)) {
+        event.setAccepted(true);
+    }
+}
+
+void FEMSimulationExample::mousePressEvent(MouseEvent& event) {
+    /* Enable mouse capture so the mouse can drag outside of the window */
+    /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
+    SDL_CaptureMouse(SDL_TRUE);
+
+    if(_ImGuiContext.handleMousePressEvent(event)) {
+        event.setAccepted(true);
+    } else {
+        _camera->initTransformation(event.position());
+    }
+}
+
+void FEMSimulationExample::mouseReleaseEvent(MouseEvent& event) {
+    /* Disable mouse capture again */
+    /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
+    SDL_CaptureMouse(SDL_FALSE);
+
+    if(_ImGuiContext.handleMouseReleaseEvent(event)) {
+        event.setAccepted(true);
+    }
+}
+
+void FEMSimulationExample::mouseMoveEvent(MouseMoveEvent& event) {
+    if(_ImGuiContext.handleMouseMoveEvent(event)) {
+        event.setAccepted(true);
+        return;
+    }
+    if(!event.buttons()) { return; }
+    if(event.modifiers() & MouseMoveEvent::Modifier::Shift) {
+        _camera->translate(event.position());
+    } else { _camera->rotate(event.position()); }
+
+    event.setAccepted();
+    redraw();
+}
+
+void FEMSimulationExample::mouseScrollEvent(MouseScrollEvent& event) {
+    if(_ImGuiContext.handleMouseScrollEvent(event)) {
+        /* Prevent scrolling the page */
+        event.setAccepted(true);
+        return;
+    }
+
+    const float delta = event.offset().y();
+    if(std::abs(delta) < 1.0e-2f) {
+        return;
+    }
+    _camera->zoom(delta);
+    event.setAccepted();
+}
+
+void FEMSimulationExample::textInputEvent(TextInputEvent& event) {
+    if(_ImGuiContext.handleTextInputEvent(event)) {
+        event.setAccepted(true);
+    }
+}
+
+void FEMSimulationExample::resetSimulation() {
+    _pause  = true;
+    _status = "Simulation paused";
+    _simulator->reset();
+}
+
+void FEMSimulationExample::showMenu() {
+    ImGui::SetNextWindowBgAlpha(0.5f);
+    ImGui::Begin("Options", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::Text("Hide/show menu: H | Exit: ESC");
+    ImGui::Text("%3.2f FPS", static_cast<double>(ImGui::GetIO().Framerate));
+    ImGui::Spacing();
     ImGui::PushItemWidth(120);
     if(ImGui::CollapsingHeader("General Simulation Parameters", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::PushID("General-Parameters");
-        ImGui::InputFloat("Gravity", &m_simulator->m_generalParams.gravity[1]);
-        ImGui::InputFloat("Damping", &m_simulator->m_generalParams.damping);
-        if(ImGui::InputFloat("Attachement Stiffness", &m_simulator->m_generalParams.attachmentStiffness)) {
-            m_simulator->updateConstraintParameters();
+        ImGui::InputFloat("Gravity", &_simulator->m_generalParams.gravity[1]);
+        ImGui::InputFloat("Damping", &_simulator->m_generalParams.damping);
+        if(ImGui::InputFloat("Attachement Stiffness", &_simulator->m_generalParams.attachmentStiffness)) {
+            _simulator->updateConstraintParameters();
         }
         ImGui::Spacing();
-        ImGui::InputFloat("Frame Time", &m_simulator->m_generalParams.dt, 0.0f, 0.0f, "%.6g");
-        ImGui::InputInt("Substeps", &m_simulator->m_generalParams.subSteps);
+        ImGui::InputFloat("Frame Time", &_simulator->m_generalParams.dt, 0.0f, 0.0f, "%.6g");
+        ImGui::InputInt("Substeps", &_simulator->m_generalParams.subSteps);
         ImGui::PopID();
     }
     ImGui::Spacing();
@@ -433,10 +355,10 @@ void Application::showMenu() {
     ImGui::Spacing();
     if(ImGui::CollapsingHeader("Wind", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::PushID("Wind");
-        ImGui::Checkbox("Enable", &m_simulator->m_wind.enable);
-        ImGui::InputFloat("Time enable", &m_simulator->m_wind.timeEnable);
-        ImGui::InputFloat("Magnitude",   &m_simulator->m_wind.magnitude);
-        ImGui::InputFloat("Frequency",   &m_simulator->m_wind.frequency);
+        ImGui::Checkbox("Enable", &_simulator->m_wind.enable);
+        ImGui::InputFloat("Time enable", &_simulator->m_wind.timeEnable);
+        ImGui::InputFloat("Magnitude",   &_simulator->m_wind.magnitude);
+        ImGui::InputFloat("Frequency",   &_simulator->m_wind.frequency);
         ImGui::PopID();
     }
     ImGui::Spacing();
@@ -446,15 +368,15 @@ void Application::showMenu() {
         ImGui::PushID("FEM-Material");
         const char* items[] = { "Corotational", "StVK", "NeoHookean-ExtendLog" };
         ImGui::PopItemWidth();
-        if(ImGui::Combo("Material", &m_simulator->m_FEMMaterial.type, items, IM_ARRAYSIZE(items))) {
-            m_simulator->updateConstraintParameters();
+        if(ImGui::Combo("Material", &_simulator->m_FEMMaterial.type, items, IM_ARRAYSIZE(items))) {
+            _simulator->updateConstraintParameters();
         }
         ImGui::PushItemWidth(120);
-        if(ImGui::InputFloat("mu", &m_simulator->m_FEMMaterial.mu)
-           || ImGui::InputFloat("lambda", &m_simulator->m_FEMMaterial.lambda)
-           || (m_simulator->m_FEMMaterial.type == FEMConstraint::Material::StVK
-               && ImGui::InputFloat("kappa", &m_simulator->m_FEMMaterial.kappa))) {
-            m_simulator->updateConstraintParameters();
+        if(ImGui::InputFloat("mu", &_simulator->m_FEMMaterial.mu)
+           || ImGui::InputFloat("lambda", &_simulator->m_FEMMaterial.lambda)
+           || (_simulator->m_FEMMaterial.type == FEMConstraint::Material::StVK
+               && ImGui::InputFloat("kappa", &_simulator->m_FEMMaterial.kappa))) {
+            _simulator->updateConstraintParameters();
         }
         ImGui::PopID();
     }
@@ -467,36 +389,33 @@ void Application::showMenu() {
     if(ImGui::CollapsingHeader("Timing", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::PushID("Timing");
         char buff[32];
-        sprintf(buff, "Frame Time:\n%5.2f (ms)", m_lastFrameTime);
+        sprintf(buff, "Frame Time:\n%5.2f (ms)", _lastFrameTime);
         float minVal = 1e10;
         float maxVal = -1e10;
-        for(size_t i = 0; i < sMaxFrames; ++i) {
-            if(minVal > m_frameTime[i]) { minVal = m_frameTime[i]; }
-            if(maxVal < m_frameTime[i]) { maxVal = m_frameTime[i]; }
+        for(size_t i = 0; i < FrameTimeHistory; ++i) {
+            if(minVal > _frameTime[i]) { minVal = _frameTime[i]; }
+            if(maxVal < _frameTime[i]) { maxVal = _frameTime[i]; }
         }
-        ImGui::PlotLines(buff, m_frameTime, IM_ARRAYSIZE(m_frameTime), m_offset, "",
+        ImGui::PlotLines(buff, _frameTime, IM_ARRAYSIZE(_frameTime), _offset, "",
                          minVal - 0.1f, maxVal + 0.1f, ImVec2(0, 80.0f));
         ImGui::PopID();
     }
-    ImGui::Text(m_status.c_str());
-    ImGui::Spacing();
-    if(ImGui::Button("Initialize Sag-Free")) {
-        m_simulator->initializeSagFreeSimulation();
-    }
+    ImGui::Text(_status.c_str());
     if(ImGui::Button("Pause/Resume")) {
-        m_pause ^= true;
-        if(m_pause) { m_status = "Status: Paused"; }
+        _pause ^= true;
+        if(_pause) { _status = "Status: Paused"; }
     }
     ImGui::SameLine();
     if(ImGui::Button("Reset")) {
         resetSimulation();
     }
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    if(ImGui::Button("Reset camera")) {
+        _camera->reset();
+    }
 }
+} }
 
-void Application::resetSimulation() {
-    m_pause  = true;
-    m_status = "Status: Paused";
-    m_simulator->reset();
-}
-
-MAGNUM_APPLICATION_MAIN(Application)
+MAGNUM_APPLICATION_MAIN(Magnum::Examples::FEMSimulationExample)
