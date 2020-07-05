@@ -135,30 +135,27 @@ ClothSimulationExample::ClothSimulationExample(const Arguments& arguments) :
         }
     }
 
-    /* Setup scene objects and camera */
-    {
-        /* Setup scene objects */
-        _scene.emplace();
-        _drawables.emplace();
+    /* Setup scene objects */
+    _scene.emplace();
+    _drawables.emplace();
 
-        /* Configure camera */
-        _objCamera3D.emplace(_scene.get());
-        _objCamera3D->translate(Vector3::zAxis(3.0f));
+    /* Configure camera */
+    _objCamera3D.emplace(_scene.get());
+    _objCamera3D->translate(Vector3::zAxis(3.0f));
 
-        const Deg fov = 45.0_degf;
-        _camera3D.emplace(*_objCamera3D);
-        _camera3D->setAspectRatioPolicy(SceneGraph::AspectRatioPolicy::Extend)
-            .setProjectionMatrix(Matrix4::perspectiveProjection(fov,
-                                                                Vector2{ windowSize() }.aspectRatio(),
-                                                                0.001f, 1000.0f))
-            .setViewport(GL::defaultFramebuffer.viewport().size());
+    const Deg fov = 45.0_degf;
+    _camera3D.emplace(*_objCamera3D);
+    _camera3D->setAspectRatioPolicy(SceneGraph::AspectRatioPolicy::Extend)
+        .setProjectionMatrix(Matrix4::perspectiveProjection(fov,
+                                                            Vector2{ windowSize() }.aspectRatio(),
+                                                            0.001f, 1000.0f))
+        .setViewport(GL::defaultFramebuffer.viewport().size());
 
-        const Vector3 eye{ Vector3::zAxis(5.0f) };
-        const Vector3 viewCenter{ 0 };
-        const Vector3 up{ Vector3::yAxis() };
-        _arcballCamera.emplace(*_scene.get(), eye, viewCenter, up, fov, windowSize(), framebufferSize());
-        _arcballCamera->setLagging(0.85f);
-    }
+    const Vector3 eye{ Vector3::zAxis(5.0f) };
+    const Vector3 viewCenter{ 0 };
+    const Vector3 up{ Vector3::yAxis() };
+    _arcballCamera.emplace(*_scene.get(), eye, viewCenter, up, fov, windowSize(), framebufferSize());
+    _arcballCamera->setLagging(0.85f);
 
     /* Setup cloth solver */
     _clothSolver.getCloth().setCloth(ClothCorner, ClothSize, ClothResolution);
@@ -230,7 +227,6 @@ ClothSimulationExample::ClothSimulationExample(const Arguments& arguments) :
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
     GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
 
-    /* Start the timer, loop at 60 Hz max */
     setSwapInterval(1);
     setMinimalLoopPeriod(16);
 }
