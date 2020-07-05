@@ -47,29 +47,29 @@ find_package(Magnum REQUIRED
     Shaders
     Sdl2Application)
 find_package(MagnumIntegration REQUIRED ImGui)
-find_package (Eigen3 REQUIRED NO_MODULE)
+find_package(Eigen3 REQUIRED NO_MODULE)
 
 set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
-corrade_add_resource(FEMSimulation_RESOURCES resources.conf)
+corrade_add_resource(FEMSimulationExample_RESOURCES resources.conf)
 
 add_executable(magnum-femsimulation WIN32
     ../arcball/ArcBall.cpp
     ../fluidsimulation3d/DrawableObjects/WireframeObjects.h
+    Constraints.cpp
+    Constraints.h
     FEMSimulationExample.cpp
-    Simulation/Constraints.cpp
-    Simulation/Constraints.h
-    Simulation/MathDefinitions.h
-    Simulation/Mesh.cpp
-    Simulation/Mesh.h
-    Simulation/Simulator.cpp
-    Simulation/Simulator.h
-    ${FEMSimulation_RESOURCES}
+    MathDefinitions.h
+    Mesh.cpp
+    Mesh.h
+    Simulator.cpp
+    Simulator.h
+    ${FEMSimulationExample_RESOURCES}
     )
 
+# Need this to access WireframeGrid
 include_directories(../fluidsimulation3d)
-include_directories(D:/Projects/InverseSimulation/Code/InvFEM/Libs/Eigen3/include/eigen3/)
+
 target_link_libraries(magnum-femsimulation PRIVATE
-    Eigen3::Eigen
     Corrade::Main
     Magnum::Application
     Magnum::DebugTools
@@ -79,7 +79,8 @@ target_link_libraries(magnum-femsimulation PRIVATE
     Magnum::Primitives
     Magnum::SceneGraph
     Magnum::Shaders
-    MagnumIntegration::ImGui)
+    MagnumIntegration::ImGui
+    Eigen3::Eigen)
 
 target_include_directories(magnum-femsimulation PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}

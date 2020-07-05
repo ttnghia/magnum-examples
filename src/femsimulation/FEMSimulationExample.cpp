@@ -39,8 +39,8 @@
 
 #include "../arcball/ArcBallCamera.h"
 #include "../fluidsimulation3d/DrawableObjects/WireframeObjects.h"
-#include "Simulation/Mesh.h"
-#include "Simulation/Simulator.h"
+#include "Mesh.h"
+#include "Simulator.h"
 
 #include <chrono>
 
@@ -156,7 +156,8 @@ FEMSimulationExample::FEMSimulationExample(const Arguments& arguments) : Platfor
     //        Vector2{framebufferSize()}.aspectRatio(), 0.01f, 100.0f);
 
     /* Setup FEM solver */
-    _mesh.reset(new TetMesh("Data/squirrel.mesh"));
+    _mesh.emplace("Data/squirrel.mesh");
+    _mesh.emplace("Data/longbar.mesh");
     _simulator.reset(new Simulator(_mesh.get()));
 }
 
