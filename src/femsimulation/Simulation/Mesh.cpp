@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include "Simulation/Mesh.h"
-
 #include <Corrade/Containers/Array.h>
 #include <Corrade/Containers/ArrayView.h>
 #include <Magnum/DebugTools/ColorMap.h>
@@ -30,6 +28,9 @@
 #include <Magnum/Trade/MeshData.h>
 
 #include <fstream>
+
+#include "../arcball/ArcBallCamera.h"
+#include "Simulation/Mesh.h"
 
 /****************************************************************************************************/
 void TetMesh::loadMesh(const String& meshFile) {

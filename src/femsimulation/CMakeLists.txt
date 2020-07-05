@@ -79,6 +79,9 @@ target_link_libraries(magnum-femsimulation PRIVATE
     Magnum::Shaders
     MagnumIntegration::ImGui)
 
+target_include_directories(magnum-femsimulation PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR})
 
 install(TARGETS magnum-femsimulation DESTINATION ${MAGNUM_BINARY_INSTALL_DIR})
 

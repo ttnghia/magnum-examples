@@ -15,7 +15,6 @@
  */
 
 #include "Simulator.h"
-#include "SagFreeInitializer/TetrahedraInitializer.h"
 
 /****************************************************************************************************/
 void Simulator::reset() {
@@ -27,45 +26,6 @@ void Simulator::reset() {
 
     /* Reset mesh data */
     m_mesh->reset();
-}
-
-/****************************************************************************************************/
-void Simulator::initializeSagFreeSimulation() {
-    /* Must clear and re-initialize constraints to ensure we're working on fresh data */
-    for(auto c : m_constraints) {
-        delete c;
-    }
-    m_constraints.resize(0);
-    initConstraints();
-    CORRADE_INTERNAL_ASSERT(m_constraints.size() > 0);
-
-    /* Extract FEM constraints */
-    StdVT<FEMConstraint*> femConstraints;
-    for(const auto constraint : m_constraints) {
-        if(constraint->type() == Constraint::Type::FEM) {
-            const auto tet = static_cast<FEMConstraint*>(constraint);
-            CORRADE_INTERNAL_ASSERT(tet != nullptr);
-            femConstraints.push_back(tet);
-        }
-    }
-
-    /* Compute gravity vector */
-    calculateExternalForce(false);
-
-    /* The list of fixed vertices must be sorted beforehand */
-    std::sort(m_mesh->m_fixedVerts.begin(), m_mesh->m_fixedVerts.end());
-
-    /* Call the initializer */
-    SagFreeInitializer::initializeSagFree(m_mesh->m_positions, m_mesh->m_fixedVerts,
-                                          m_integration.externalForces,
-                                          femConstraints,
-                                          m_sagfreeInit.regularization,
-                                          m_sagfreeInit.softConstraintStiffness,
-                                          m_sagfreeInit.cgTolerance,
-                                          m_sagfreeInit.cgMaxIters);
-
-    /* Need to prefactor the Laplacean, as tetrahedra have changed */
-    m_lbfgs.prefactored = false;
 }
 
 /****************************************************************************************************/
@@ -173,9 +133,9 @@ void Simulator::calculateExternalForce(bool addWind) {
 
 /****************************************************************************************************/
 bool Simulator::performLBFGSOneIteration(VecXf& x) {
-    static constexpr float historyLength = m_lbfgs.historyLength;
-    static constexpr float epsLARGE      = m_lbfgs.epsLARGE;
-    static constexpr u64   epsSMALL      = m_lbfgs.epsSMALL;
+    const float historyLength = m_lbfgs.historyLength;
+    const float epsLARGE      = m_lbfgs.epsLARGE;
+    const u64   epsSMALL      = m_lbfgs.epsSMALL;
 
     bool  converged = false;
     float currentEnergy;

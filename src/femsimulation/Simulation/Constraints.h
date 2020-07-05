@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "Setup.h"
+#include "Simulation/MathDefinitions.h"
 
 /****************************************************************************************************/
 class Constraint {
@@ -67,11 +67,11 @@ public:
 private:
     Mat3f getMatrixDs(const VecXf& x) const;
     void  singularValueDecomp(Mat3f& U, Vec3f& SIGMA, Mat3f& V, const Mat3f& A, bool signed_svd = true) const;
-    Material m_material;
-    float    m_mu;
-    float    m_lambda;
-    float    m_kappa;
-    static inline constexpr float m_neohookean_clamp_value { 0.1f };
+    Material    m_material;
+    float       m_mu;
+    float       m_lambda;
+    float       m_kappa;
+    const float m_neohookean_clamp_value { 0.1f };
 public:                 /* public access for sag-free initializer */
     Vec4ui  m_vIDs;
     Mat3f   m_Dm;       /* [x0-x3|x1-x3|x2-x3]       */

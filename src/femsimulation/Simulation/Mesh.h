@@ -16,8 +16,7 @@
 
 #pragma once
 
-#include "Camera/ArcBallCamera.h"
-#include "Setup.h"
+#include "Simulation/MathDefinitions.h"
 
 #include <Magnum/GL/Buffer.h>
 #include <Magnum/GL/Mesh.h>
@@ -26,6 +25,7 @@
 #include <Magnum/Shaders/MeshVisualizer.h>
 
 /****************************************************************************************************/
+class ArcBallCamera;
 class Simulator;
 class TetMesh {
     friend class Simulator;

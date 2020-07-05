@@ -16,9 +16,9 @@
 
 #pragma once
 
-#include "Constraints.h"
-#include "Mesh.h"
-#include "Setup.h"
+#include "Simulation/Constraints.h"
+#include "Simulation/Mesh.h"
+#include "Simulation/MathDefinitions.h"
 
 #include <deque>
 
@@ -28,7 +28,6 @@ public:
     Simulator(TetMesh* mesh) : m_mesh(mesh) { CORRADE_INTERNAL_ASSERT(m_mesh != nullptr); }
 
     void reset();
-    void initializeSagFreeSimulation();
     void advanceStep();
     void updateConstraintParameters();
 
@@ -72,13 +71,6 @@ public: /* public accessible parameters */
         float kappa  = 0; /* only for StVK material */
     } m_FEMMaterial;
 
-    struct {
-        double softConstraintStiffness = 1;
-        double regularization          = 1e-5;
-        double cgTolerance = 1e-5;
-        int    cgMaxIters  = 100000u;
-    } m_sagfreeInit;
-
 private: /* simulation variables */
     TetMesh*           m_mesh;
     StdVT<Constraint*> m_constraints;
@@ -89,9 +81,9 @@ private: /* simulation variables */
     } m_integration;
 
     struct {
-        static inline constexpr float epsLARGE      = 1e-4f;
-        static inline constexpr float epsSMALL      = 1e-12f;
-        static inline constexpr u64   historyLength = 5;
+        const float epsLARGE      = 1e-4f;
+        const float epsSMALL      = 1e-12f;
+        const u64   historyLength = 5;
 
         Eigen::SimplicialLLT<SparseMatrixf, Eigen::Upper> lltSolver;
 
@@ -104,9 +96,9 @@ private: /* simulation variables */
     } m_lbfgs;
 
     struct {
-        static inline constexpr u32   iterations { 10 };
-        static inline constexpr float alpha { 0.03f };
-        static inline constexpr float beta{ 0.5f };
+        const u32   iterations { 10 };
+        const float alpha { 0.03f };
+        const float beta{ 0.5f };
 
         bool  firstIteration;
         float prefetchedEnergy;

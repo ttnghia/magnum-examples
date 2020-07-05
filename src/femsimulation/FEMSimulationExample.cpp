@@ -18,7 +18,6 @@
 #include <Magnum/GL/DefaultFramebuffer.h>
 #include <Magnum/GL/Renderer.h>
 
-#include "Application/ImGuiApplication.h"
 #include "Simulation/Mesh.h"
 #include "Simulation/Simulator.h"
 
