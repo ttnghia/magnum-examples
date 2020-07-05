@@ -46,30 +46,29 @@ find_package(Magnum REQUIRED
     Shaders
     Sdl2Application)
 find_package(MagnumIntegration REQUIRED ImGui)
+find_package (Eigen3 REQUIRED NO_MODULE)
 
 set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
-
 corrade_add_resource(FEMSimulation_RESOURCES resources.conf)
 
-
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-include_directories(D:/Projects/InverseSimulation/Code/InvFEM/Libs/Eigen3/include/eigen3/)
-include_directories(Prototype/)
-include_directories(D:/Dev/Libs/tbb/include)
-file(GLOB_RECURSE Smoke2D_SOURCES ./Prototype/*.cpp)
-
 add_executable(magnum-femsimulation WIN32
-    FEMSimulationExample.cpp
-    FEMSolver/SolverData.h
-    FEMSolver/FEMSolver.h
-    FEMSolver/FEMSolver.cpp
-        ${Smoke2D_SOURCES}
-    ${FEMSimulation_RESOURCES}
     ../arcball/ArcBall.cpp
-    ../motionblur/Icosphere.cpp)
+    ../fluidsimulation3d/DrawableObjects/WireframeObjects.h
+    FEMSimulationExample.cpp
+    Simulation/Constraints.cpp
+    Simulation/Constraints.h
+    Simulation/MathDefinitions.h
+    Simulation/Mesh.cpp
+    Simulation/Mesh.h
+    Simulation/Simulator.cpp
+    Simulation/Simulator.h
+    ${FEMSimulation_RESOURCES}
+    )
+
+include_directories(../fluidsimulation3d/DrawableObjects)
+include_directories(D:/Projects/InverseSimulation/Code/InvFEM/Libs/Eigen3/include/eigen3/)
 target_link_libraries(magnum-femsimulation PRIVATE
-    D:/Dev/Libs/tbb/lib/tbb.lib
+    Eigen3::Eigen
     Corrade::Main
     Magnum::Application
     Magnum::GL
@@ -79,9 +78,7 @@ target_link_libraries(magnum-femsimulation PRIVATE
     Magnum::SceneGraph
     Magnum::Shaders
     MagnumIntegration::ImGui)
-target_include_directories(magnum-femsimulation PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_BINARY_DIR})
+
 
 install(TARGETS magnum-femsimulation DESTINATION ${MAGNUM_BINARY_INSTALL_DIR})
 
