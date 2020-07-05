@@ -28,6 +28,7 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <Corrade/Containers/GrowableArray.h>
 #include <Corrade/Containers/Pointer.h>
 #include <Magnum/GL/DefaultFramebuffer.h>
 #include <Magnum/GL/Renderer.h>
@@ -79,7 +80,7 @@ private:
     void mouseScrollEvent(MouseScrollEvent& event) override;
     void textInputEvent(TextInputEvent& event) override;
 
-    void setupScene(Int sceneId);
+    void setupScene(Int sceneId = 0);
     void resetSimulation();
     void showMenu();
 
@@ -158,9 +159,7 @@ FEMSimulationExample::FEMSimulationExample(const Arguments& arguments) : Platfor
     //        Vector2{framebufferSize()}.aspectRatio(), 0.01f, 100.0f);
 
     /* Setup FEM solver */
-    _mesh.emplace("Data/squirrel.mesh");
-    _mesh.emplace("Data/longbar.mesh");
-    _simulator.reset(new Simulator(_mesh.get()));
+    setupScene();
 }
 
 void FEMSimulationExample::viewportEvent(ViewportEvent& event) {
@@ -329,7 +328,52 @@ void FEMSimulationExample::textInputEvent(TextInputEvent& event) {
 }
 
 void FEMSimulationExample::setupScene(Int sceneId) {
-    //
+    if(sceneId == 0) {
+        _mesh.emplace("Data/longbar.mesh");
+
+        /* Setup fixed vertices */
+        /* Find the maximum x value */
+        Float max_x = -1e10f;
+        for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
+            const Vec3f& v = _mesh->m_positions_t0.block3(idx);
+            if(max_x < v.x()) { max_x = v.x(); }
+        }
+
+        /* Fix the vertices that have x ~~ max_x */
+        for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
+            const Vec3f& v = _mesh->m_positions_t0.block3(idx);
+            if(std::abs(max_x - v.x()) < 1e-4f) {
+                arrayAppend(_mesh->m_fixedVerts, idx);
+            }
+        }
+    } else {
+        _mesh.emplace("Data/squirrel.mesh");
+
+        /* Transform the squirrel mesh, since the original mesh is small
+         * Firstly compute the squirrel bounding box, then rescale/translate
+         */
+
+        /* Find the maximum y value */
+        Float max_y = -1e10f;
+        for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
+            const Vec3f& v = _mesh->m_positions_t0.block3(idx);
+            if(max_y < v.y()) { max_y = v.y(); }
+        }
+        for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
+            const Vec3f& v = _mesh->m_positions_t0.block3(idx);
+            if(max_y < v.y()) { max_y = v.y(); }
+        }
+
+        /* Fix the vertices that have y ~~ max_y */
+        for(UnsignedInt idx = 0; idx < _mesh->m_numVerts; ++idx) {
+            const Vec3f& v = _mesh->m_positions_t0.block3(idx);
+            if(std::abs(max_y - v.y()) < 1e-1f) {
+                arrayAppend(_mesh->m_fixedVerts, idx);
+            }
+        }
+    }
+    _mesh->reset();
+    _simulator.emplace(_mesh.get());
 }
 
 void FEMSimulationExample::resetSimulation() {
@@ -388,6 +432,15 @@ void FEMSimulationExample::showMenu() {
     ImGui::Spacing();
     ImGui::PopItemWidth();
 
+    if(ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::PushID("Scene");
+        const char* items[] = { "Long Bar", "Squirrel" };
+        static int  sceneId { 0 };
+        if(ImGui::Combo("Scene", &sceneId, items, IM_ARRAYSIZE(items))) {
+            setupScene(sceneId);
+        }
+        ImGui::PopID();
+    }
     if(ImGui::CollapsingHeader("Timing", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::PushID("Timing");
         char buff[32];

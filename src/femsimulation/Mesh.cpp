@@ -106,24 +106,6 @@ void TetMesh::loadMesh(const char* meshFile) {
     CORRADE_INTERNAL_ASSERT(m_triangles.size() > 0);
     CORRADE_INTERNAL_ASSERT(m_tets.size() > 0);
 
-    /* Find the maximum x value */
-    Float max_x = -1e10f;
-    for(UnsignedInt idx = 0; idx < m_numVerts; ++idx) {
-        const Vec3f& v = m_positions_t0.block3(idx);
-        if(max_x < v.x()) { max_x = v.x(); }
-        //        if(max_x < v.y()) { max_x = v.y(); }
-    }
-
-    arrayResize(m_fixedVerts, 0);
-    /* Fix the vertices that have x ~~ max_x */
-    for(UnsignedInt idx = 0; idx < m_numVerts; ++idx) {
-        const Vec3f& v = m_positions_t0.block3(idx);
-        if(std::abs(max_x - v.x()) < 1e-4f) {
-            //        if(std::abs(max_x - v.y()) < 1e-1f) {
-            arrayAppend(m_fixedVerts, idx);
-        }
-    }
-
     /* Reset positions/velocites */
     reset();
     Debug() << "Loaded tet mesh from" << meshFile;
