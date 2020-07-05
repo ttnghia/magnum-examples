@@ -30,36 +30,28 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <Eigen/Core>
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
-
-#include <Magnum/Magnum.h>
-
-namespace Magnum { namespace Examples {
 #ifdef _MSC_VER
 #pragma warning (disable: 4127) // condition expression is constant
 #pragma warning (disable: 4996) // 'This function or variable may be unsafe': strcpy, strdup, sprintf, vsnprintf, sscanf, fopen
 #endif
 
+#include <Eigen/Core>
+#include <Eigen/Dense>
+#include <Eigen/Sparse>
+
+namespace Magnum { namespace Examples {
 template<int N, class Type> using VecX   = Eigen::Matrix<Type, N, 1>;
 template<int N, class Type> using MatXxX = Eigen::Matrix<Type, N, N>;
 
 /* Fixed size vector/matrix */
-using Vec2f = VecX<2, Float>;
-using Vec3f = VecX<3, Float>;
-using Vec4f = VecX<4, Float>;
-
-using Mat2f = MatXxX<2, Float>;
-using Mat3f = MatXxX<3, Float>;
-using Mat4f = MatXxX<4, Float>;
-
+using Vec3f   = VecX<3, Float>;
+using Mat3f   = MatXxX<3, Float>;
+using Mat4f   = MatXxX<4, Float>;
 using Mat3x4f = Eigen::Matrix<Float, 3, 4>;
 
 /* Dynamic size vector/matrix */
 using MatX3f = Eigen::Matrix<Float, -1, 3, Eigen::RowMajor>; /* must be row major for memcpy */
 using VecXf  = Eigen::Matrix<Float, Eigen::Dynamic, 1>;
-using MatXf  = Eigen::Matrix<Float, Eigen::Dynamic, Eigen::Dynamic>;
 
 /* Sparse matrix */
 using DiagonalMatrixf = Eigen::DiagonalMatrix<Float, Eigen::Dynamic, Eigen::Dynamic>;

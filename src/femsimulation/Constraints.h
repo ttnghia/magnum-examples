@@ -31,6 +31,7 @@
  */
 
 #include <Corrade/Containers/Array.h>
+#include <Magnum/Magnum.h>
 #include <Magnum/Math/Vector4.h>
 
 #include "MathDefinitions.h"
