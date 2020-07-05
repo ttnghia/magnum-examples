@@ -32,11 +32,11 @@
 #include <Eigen/SVD>
 
 namespace Magnum { namespace Examples {
-float AttachmentConstraint::evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) const {
+Float AttachmentConstraint::evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) const {
     const Vec3f d = x.block3(m_vIdx) - m_fixedPos;
     const Vec3f g = m_stiffness * d;
     gradient.block3(m_vIdx) += g;
-    const float energy = 0.5f * m_stiffness * d.squaredNorm();
+    const Float energy = 0.5f * m_stiffness * d.squaredNorm();
     return energy;
 }
 
@@ -60,7 +60,7 @@ FEMConstraint::FEMConstraint(const Vec4ui& vIDs, const VecXf& x) :
     m_G = m_Dm_inv_T * IND;
 }
 
-void FEMConstraint::setFEMMaterial(Material type, float mu, float lambda, float kappa) {
+void FEMConstraint::setFEMMaterial(Material type, Float mu, Float lambda, Float kappa) {
     m_material = type;
     m_mu       = mu;
     m_lambda   = lambda;
@@ -71,7 +71,7 @@ void FEMConstraint::setFEMMaterial(Material type, float mu, float lambda, float 
 }
 
 void FEMConstraint::computeLaplacianWeight() {
-    float laplacianCoeff{ 0 };
+    Float laplacianCoeff{ 0 };
     switch(m_material) {
         case Material::Corotational:
             // 2mu (x-1) + lambda (x-1)
@@ -97,9 +97,9 @@ void FEMConstraint::computeLaplacianWeight() {
     m_L = laplacianCoeff * m_w * m_G.transpose() * m_G;
 }
 
-float FEMConstraint::getMassContribution(VecXf& m, VecXf& m_1d) {
-    const float vw = 0.25f * m_w;
-    for(u32 i = 0; i != 4; i++) {
+Float FEMConstraint::getMassContribution(VecXf& m, VecXf& m_1d) {
+    const Float vw = 0.25f * m_w;
+    for(UnsignedInt i = 0; i != 4; i++) {
         m[3 * m_vIDs[i] + 0] += vw;
         m[3 * m_vIDs[i] + 1] += vw;
         m[3 * m_vIDs[i] + 2] += vw;
@@ -108,8 +108,8 @@ float FEMConstraint::getMassContribution(VecXf& m, VecXf& m_1d) {
     return m_w;
 }
 
-float FEMConstraint::computeStressAndEnergyDensity(const Mat3f& F, Mat3f& P) const {
-    float e_density = 0;
+Float FEMConstraint::computeStressAndEnergyDensity(const Mat3f& F, Mat3f& P) const {
+    Float e_density = 0;
     switch(m_material) {
         case Material::Corotational: {
             Mat3f U;
@@ -118,7 +118,7 @@ float FEMConstraint::computeStressAndEnergyDensity(const Mat3f& F, Mat3f& P) con
             singularValueDecomp(U, SIGMA, V, F);
             const Mat3f R          = U * V.transpose();
             const Mat3f FmR        = F - R;
-            const float traceRTFm3 = (R.transpose() * F).trace() - 3;
+            const Float traceRTFm3 = (R.transpose() * F).trace() - 3;
             P         = 2 * m_mu * FmR + m_lambda * traceRTFm3 * R;
             e_density = m_mu * FmR.squaredNorm() + 0.5f * m_lambda * traceRTFm3 * traceRTFm3;
         }
@@ -126,12 +126,12 @@ float FEMConstraint::computeStressAndEnergyDensity(const Mat3f& F, Mat3f& P) con
         case Material::StVK: {
             const Mat3f I      = Mat3f::Identity();
             const Mat3f E      = 0.5f * (F.transpose() * F - I);
-            const float traceE = E.trace();
+            const Float traceE = E.trace();
             P = F * (2 * m_mu * E + m_lambda * traceE * I);
-            const float J = F.determinant();
+            const Float J = F.determinant();
             e_density = m_mu * E.squaredNorm() + 0.5f * m_lambda * traceE * traceE;
             if(J < 1 && J != 0) {
-                const float one_mJd6 = (1 - J) / 6;
+                const Float one_mJd6 = (1 - J) / 6;
                 P         += -m_kappa / 24 * one_mJd6 * one_mJd6 * J * F.inverse().transpose();
                 e_density += m_kappa / 12 * one_mJd6 * one_mJd6 * one_mJd6;
             }
@@ -141,24 +141,24 @@ float FEMConstraint::computeStressAndEnergyDensity(const Mat3f& F, Mat3f& P) con
             P         = m_mu * F;
             e_density = 0.5f * m_mu * ((F.transpose() * F).trace() - 3);
 
-            const float J = F.determinant();
+            const Float J = F.determinant();
             if(J == 0) { /* degenerated tet */
                 break;
             }
-            const float J0    = m_neohookean_clamp_value;
+            const Float J0    = m_neohookean_clamp_value;
             const Mat3f FinvT = F.inverse().transpose(); /* F is invertible if J != 0 */
             if(J > J0) {
-                const float logJ = std::log(J);
+                const Float logJ = std::log(J);
                 P         += (-m_mu + m_lambda * logJ) * FinvT;
                 e_density += (-m_mu + 0.5f * m_lambda * logJ) * logJ;
             } else {
-                const float JmJ0dJ0 = (J - J0) / J0;
+                const Float JmJ0dJ0 = (J - J0) / J0;
 #ifdef LOGJ_QUADRATIC_EXTENSION
-                const float fJ    = std::log(J0) + JmJ0dJ0 - 0.5f * JmJ0dJ0 * JmJ0dJ0;
-                const float dfJdJ = (1.0f - JmJ0dJ0) / J0;
+                const Float fJ    = std::log(J0) + JmJ0dJ0 - 0.5f * JmJ0dJ0 * JmJ0dJ0;
+                const Float dfJdJ = (1.0f - JmJ0dJ0) / J0;
 #else
-                float fJ    = std::log(J0) + JmJ0dJ0;
-                float dfJdJ = 1.0f / J0;
+                Float fJ    = std::log(J0) + JmJ0dJ0;
+                Float dfJdJ = 1.0f / J0;
 #endif
                 P         += (-m_mu + m_lambda * fJ) * dfJdJ * J * FinvT;
                 e_density += (-m_mu + 0.5f * m_lambda * fJ) * fJ;
@@ -171,13 +171,13 @@ float FEMConstraint::computeStressAndEnergyDensity(const Mat3f& F, Mat3f& P) con
     return e_density;
 }
 
-float FEMConstraint::evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) const {
+Float FEMConstraint::evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) const {
     Mat3f       P;
     const Mat3f F         = getMatrixDs(x) * m_Dm_inv;
-    const float e_density = computeStressAndEnergyDensity(F, P);
+    const Float e_density = computeStressAndEnergyDensity(F, P);
     const Mat3f H         = m_w * P * m_Dm_inv_T;
     Vec3f       H3        = Vec3f::Zero();
-    for(u32 i = 0; i < 3; i++) {
+    for(UnsignedInt i = 0; i < 3; i++) {
         gradient.block3(m_vIDs[i]) += H.col(i);
         H3 += H.col(i);
     }
@@ -186,8 +186,8 @@ float FEMConstraint::evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient) 
 }
 
 void FEMConstraint::getWLaplacianContribution(StdVT<Tripletf>& triplets) const {
-    for(u32 i = 0; i < 4; i++) {
-        for(u32 j = 0; j < 4; j++) {
+    for(UnsignedInt i = 0; i < 4; i++) {
+        for(UnsignedInt j = 0; j < 4; j++) {
             triplets.emplace_back(Tripletf(m_vIDs[i], m_vIDs[j], m_L(i, j)));
         }
     }
@@ -208,8 +208,8 @@ void FEMConstraint::singularValueDecomp(Mat3f& U, Vec3f& SIGMA, Mat3f& V, const 
     V     = svd.matrixV();
     SIGMA = svd.singularValues();
     if(signed_svd) {
-        float detU = U.determinant();
-        float detV = V.determinant();
+        Float detU = U.determinant();
+        Float detV = V.determinant();
         if(detU < 0) {
             U.block<3, 1>(0, 2) *= -1;
             SIGMA[2] *= -1;

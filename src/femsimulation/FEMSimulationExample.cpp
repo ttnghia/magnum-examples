@@ -43,14 +43,15 @@
 #include "Simulator.h"
 
 #include <chrono>
+#include <string>
 
 namespace Magnum { namespace Examples {
 class Timer {
 public:
     Timer() = default;
     void tick() { _startTime = std::chrono::high_resolution_clock::now(); }
-    float tock() {
-        return std::chrono::duration<float, std::milli>(
+    Float tock() {
+        return std::chrono::duration<Float, std::milli>(
             std::chrono::high_resolution_clock::now() - _startTime).count();
     }
 
@@ -92,13 +93,13 @@ private:
     /* Simulation */
     Containers::Pointer<Simulator> _simulator;
     Containers::Pointer<TetMesh>   _mesh;
-    Timer  _timer;
-    String _status { "Status: Paused" };
-    bool   _pause { true };
+    Timer       _timer;
+    std::string _status { "Status: Paused" };
+    bool        _pause { true };
 
     /* For plotting frame simulation time */
-    float  _frameTime[FrameTimeHistory];
-    float  _lastFrameTime{ 0 };
+    Float  _frameTime[FrameTimeHistory];
+    Float  _lastFrameTime{ 0 };
     size_t _offset { 0 };
 };
 
@@ -181,7 +182,7 @@ void FEMSimulationExample::drawEvent() {
         _timer.tick();
         _simulator->advanceStep();
         _timer.tock();
-        static u32 count { 0 };
+        static UnsignedInt count { 0 };
         ++count;
         if(count == 10) {
             _frameTime[_offset] = _timer.tock();
@@ -191,7 +192,7 @@ void FEMSimulationExample::drawEvent() {
         }
         char buff[128];
         sprintf(buff, "Running simulation (t = %.2f (s))", _simulator->m_generalParams.time);
-        _status = String(buff);
+        _status = std::string(buff);
     }
 
     /* Draw frame */
@@ -312,7 +313,7 @@ void FEMSimulationExample::mouseScrollEvent(MouseScrollEvent& event) {
         return;
     }
 
-    const float delta = event.offset().y();
+    const Float delta = event.offset().y();
     if(std::abs(delta) < 1.0e-2f) {
         return;
     }
@@ -391,8 +392,8 @@ void FEMSimulationExample::showMenu() {
         ImGui::PushID("Timing");
         char buff[32];
         sprintf(buff, "Frame Time:\n%5.2f (ms)", _lastFrameTime);
-        float minVal = 1e10;
-        float maxVal = -1e10;
+        Float minVal = 1e10;
+        Float maxVal = -1e10;
         for(size_t i = 0; i < FrameTimeHistory; ++i) {
             if(minVal > _frameTime[i]) { minVal = _frameTime[i]; }
             if(maxVal < _frameTime[i]) { maxVal = _frameTime[i]; }

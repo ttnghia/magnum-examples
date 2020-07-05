@@ -30,7 +30,7 @@
 
 #include <Corrade/Containers/Array.h>
 #include <Corrade/Containers/ArrayView.h>
-#include <Magnum/DebugTools/ColorMap.h>
+#include <Corrade/Utility/Debug.h>
 #include <Magnum/GL/TextureFormat.h>
 #include <Magnum/ImageView.h>
 #include <Magnum/Magnum.h>
@@ -47,13 +47,13 @@
 #include "Mesh.h"
 
 namespace Magnum { namespace Examples {
-void TetMesh::loadMesh(const String& meshFile) {
+void TetMesh::loadMesh(const char* meshFile) {
     m_triangles.clear();
     m_tets.clear();
 
     std::ifstream infile(meshFile);
     if(!infile.is_open()) {
-        Fatal{} << "Cannot read file" << meshFile.c_str();
+        Fatal{} << "Cannot read file" << meshFile;
         return;
     }
 
@@ -72,14 +72,14 @@ void TetMesh::loadMesh(const String& meshFile) {
         if(strcmp(buffer, "Vertices") == 0) {
             infile >> m_numVerts;
             m_positions_t0.resize(m_numVerts * 3);
-            for(u32 i = 0; i < m_numVerts; ++i) {
+            for(UnsignedInt i = 0; i < m_numVerts; ++i) {
                 infile >> pos[0] >> pos[1] >> pos[2] >> ignore;
                 m_positions_t0.block3(i) = pos * 1;
             }
         } else if(strcmp(buffer, "Triangles") == 0) {
-            u32 numFaces;
+            UnsignedInt numFaces;
             infile >> numFaces;
-            for(u32 i = 0; i < numFaces; ++i) {
+            for(UnsignedInt i = 0; i < numFaces; ++i) {
                 infile >> face[0] >> face[1] >> face[2] >> ignore;
                 /* The face id read from file is 1-base, thus minus them by one */
                 for(size_t j = 0; j < 3; ++j) {
@@ -88,9 +88,9 @@ void TetMesh::loadMesh(const String& meshFile) {
                 m_triangles.push_back(face);
             }
         } else if(strcmp(buffer, "Tetrahedra") == 0) {
-            u32 numTets;
+            UnsignedInt numTets;
             infile >> numTets;
-            for(u32 i = 0; i < numTets; ++i) {
+            for(UnsignedInt i = 0; i < numTets; ++i) {
                 infile >> tet[0] >> tet[1] >> tet[2] >> tet[3] >> ignore;
                 /* The face id read from file is 1-base, thus minus them by one */
                 for(size_t j = 0; j < 4; ++j) {
@@ -106,8 +106,8 @@ void TetMesh::loadMesh(const String& meshFile) {
     CORRADE_INTERNAL_ASSERT(     m_tets.size() > 0);
 
     /* Find the maximum x value */
-    float max_x = -1e10f;
-    for(u32 idx = 0; idx < m_numVerts; ++idx) {
+    Float max_x = -1e10f;
+    for(UnsignedInt idx = 0; idx < m_numVerts; ++idx) {
         const Vec3f& v = m_positions_t0.block3(idx);
         if(max_x < v.x()) { max_x = v.x(); }
         //        if(max_x < v.y()) { max_x = v.y(); }
@@ -115,7 +115,7 @@ void TetMesh::loadMesh(const String& meshFile) {
 
     m_fixedVerts.clear();
     /* Fix the vertices that have x ~~ max_x */
-    for(u32 idx = 0; idx < m_numVerts; ++idx) {
+    for(UnsignedInt idx = 0; idx < m_numVerts; ++idx) {
         const Vec3f& v = m_positions_t0.block3(idx);
         if(std::abs(max_x - v.x()) < 1e-4f) {
             //        if(std::abs(max_x - v.y()) < 1e-1f) {
@@ -125,7 +125,7 @@ void TetMesh::loadMesh(const String& meshFile) {
 
     /* Reset positions/velocites */
     reset();
-    Debug() << "Loaded tet mesh from" << meshFile.c_str();
+    Debug() << "Loaded tet mesh from" << meshFile;
 }
 
 void TetMesh::setupShader() {
@@ -143,27 +143,13 @@ void TetMesh::setupShader() {
         .addVertexBuffer(m_vertBuffer, 0, Shaders::Generic3D::Position{})
         .setIndexBuffer(std::move(indices), 0, compressed.second);
 
-    /* https://doc.magnum.graphics/magnum/namespaceMagnum_1_1DebugTools_1_1ColorMap.html */
-    const auto     map = DebugTools::ColorMap::viridis();
-    const Vector2i size{ Int(map.size()), 1 };
-    m_colormap = GL::Texture2D{};
-    m_colormap
-        .setMinificationFilter(SamplerFilter::Linear)
-        .setMagnificationFilter(SamplerFilter::Linear)
-        .setWrapping(SamplerWrapping::ClampToEdge)
-        .setStorage(1, GL::TextureFormat::RGB8, size)
-        .setSubImage(0, {}, ImageView2D{ PixelFormat::RGB8Unorm, size, map });
-
     m_shader.setColor(Color3{ 0.275, 0.08, 0.4 })
         .setWireframeColor(Color3{ 1, 1, 1 })
         .setWireframeWidth(0.5f);
-    //        .setColorMapTransformation(0.0f, 1.0f / m_numVerts);
-
-    //        .bindColorMapTexture(m_colormap);;
 }
 
 void TetMesh::draw(ArcBallCamera* camera, const Vector2& viewportSize) {
-    Containers::ArrayView<const float> data(reinterpret_cast<const float*>(m_positions.data()),
+    Containers::ArrayView<const Float> data(reinterpret_cast<const Float*>(m_positions.data()),
                                             m_positions.size());
     m_vertBuffer.setData(data, GL::BufferUsage::DynamicDraw);
     m_shader.setTransformationMatrix(camera->viewMatrix())

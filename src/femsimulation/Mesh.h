@@ -45,12 +45,12 @@ class Simulator;
 class TetMesh {
     friend class Simulator;
 public:
-    TetMesh(const String& meshFile, float totalMass = 1.0f) : m_totalMass(totalMass) {
+    TetMesh(const char* meshFile, Float totalMass = 1.0f) : m_totalMass(totalMass) {
         loadMesh(meshFile);
         setupShader();
     }
 
-    void loadMesh(const String& meshFile);
+    void loadMesh(const char* meshFile);
     void setupShader();
     void draw(ArcBallCamera* camera, const Vector2& viewportSize);
     void reset();
@@ -59,16 +59,12 @@ private:
     /* Render helpers */
     GL::Mesh                  m_mesh{ NoCreate };
     GL::Buffer                m_vertBuffer{ NoCreate };
-    GL::Texture2D             m_colormap{ NoCreate };
-    Shaders::MeshVisualizer3D m_shader{
-        Shaders::MeshVisualizer3D::Flag::Wireframe
-        //                | Shaders::MeshVisualizer3D::Flag::VertexId
-    };
+    Shaders::MeshVisualizer3D m_shader{ Shaders::MeshVisualizer3D::Flag::Wireframe };
 
     /* Public mesh data */
 public:
-    u32   m_numVerts;   /* n */
-    float m_totalMass { 1.0f };
+    UnsignedInt m_numVerts; /* n */
+    Float       m_totalMass { 1.0f };
 
     VecXf           m_positions_t0;  /* 1x3n  */
     VecXf           m_positions;     /* 1x3n  */
@@ -77,9 +73,9 @@ public:
     DiagonalMatrixf m_invMassMatrix; /* 3nx3n */
     DiagonalMatrixf m_massMatrix1D;  /* nxn */
 
-    StdVT<u32>    m_fixedVerts;
-    StdVT<Vec3ui> m_triangles;
-    StdVT<Vec4ui> m_tets;
+    StdVT<UnsignedInt> m_fixedVerts;
+    StdVT<Vec3ui>      m_triangles;
+    StdVT<Vec4ui>      m_tets;
 };
 } }
 

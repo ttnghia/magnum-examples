@@ -54,35 +54,35 @@ private:
      * the final value of x will be the next position vector
      */
     bool  performLBFGSOneIteration(VecXf& x);
-    float evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient);
+    Float evaluateEnergyAndGradient(const VecXf& x, VecXf& gradient);
     VecXf lbfgsKernelLinearSolve(const VecXf& gf_k);
-    float linesearch(const VecXf& x, float energy, const VecXf& gradDir, const VecXf& descentDir,
-                     float& nextEnergy, VecXf& nextGradDir);
+    Float linesearch(const VecXf& x, Float energy, const VecXf& gradDir, const VecXf& descentDir,
+                     Float& nextEnergy, VecXf& nextGradDir);
     void prefactorize();
 
 public: /* public accessible parameters */
     struct {
         Vec3f gravity = Vec3f(0, -10, 0);
-        float damping { 0.002f };
-        float attachmentStiffness{ 1000.0f };
+        Float damping { 0.002f };
+        Float attachmentStiffness{ 1000.0f };
 
-        float dt { 1.0f / 30.0f };
+        Float dt { 1.0f / 30.0f };
         int   subSteps { 5 };
-        float time { 0 };
+        Float time { 0 };
     } m_generalParams;
 
     struct {
         bool  enable     = false;
-        float timeEnable = 10; /* Disable if set to a negative number */
-        float magnitude  = 15;
-        float frequency  = 1;
+        Float timeEnable = 10; /* Disable if set to a negative number */
+        Float magnitude  = 15;
+        Float frequency  = 1;
     } m_wind;
 
     struct {
         int   type   = FEMConstraint::Material::NeoHookeanExtendLog;
-        float mu     = 40;
-        float lambda = 20;
-        float kappa  = 0; /* only for StVK material */
+        Float mu     = 40;
+        Float lambda = 20;
+        Float kappa  = 0; /* only for StVK material */
     } m_FEMMaterial;
 
 private: /* simulation variables */
@@ -95,9 +95,9 @@ private: /* simulation variables */
     } m_integration;
 
     struct {
-        const float epsLARGE      = 1e-4f;
-        const float epsSMALL      = 1e-12f;
-        const u64   historyLength = 5;
+        const Float       epsLARGE      = 1e-4f;
+        const Float       epsSMALL      = 1e-12f;
+        const std::size_t historyLength = 5;
 
         Eigen::SimplicialLLT<SparseMatrixf, Eigen::Upper> lltSolver;
 
@@ -110,12 +110,12 @@ private: /* simulation variables */
     } m_lbfgs;
 
     struct {
-        const u32   iterations { 10 };
-        const float alpha { 0.03f };
-        const float beta{ 0.5f };
+        const UnsignedInt iterations { 10 };
+        const Float       alpha { 0.03f };
+        const Float       beta{ 0.5f };
 
         bool  firstIteration;
-        float prefetchedEnergy;
+        Float prefetchedEnergy;
         VecXf prefetchedGradient;
     } m_lineSearch;
 };
