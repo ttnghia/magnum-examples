@@ -39,8 +39,8 @@
 namespace Magnum { namespace Examples {
 class Simulator {
 public:
-    Simulator(TetMesh* mesh) : m_mesh(mesh) { CORRADE_INTERNAL_ASSERT(m_mesh != nullptr); }
-
+    Simulator(TetMesh* mesh) : _mesh(mesh) { CORRADE_INTERNAL_ASSERT(_mesh != nullptr); }
+    ~Simulator();
     void reset();
     void advanceStep();
     void updateConstraintParameters();
@@ -86,8 +86,8 @@ public: /* public accessible parameters */
     } _materialParams;
 
 private: /* simulation variables */
-    TetMesh* m_mesh;
-    Containers::Array<Constraint*> m_constraints;
+    TetMesh* _mesh;
+    Containers::Array<Constraint*> _constraints;
 
     struct {
         EgVecXf y;

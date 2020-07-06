@@ -83,15 +83,11 @@ void FEMConstraint::computeLaplacianWeight() {
             // mu * (x^2  - 1) + 0.5lambda * (x^3 - x)
             // 10% window
             laplacianCoeff = 2 * _mu + 1.0033 * _lambda;
-            //// 20% window
-            //m_laplacian_coeff = 2 * _mu + 1.0126 * _lambda;
             break;
         case Material::NeoHookeanExtendLog:
             // mu * x - mu / x + lambda * log(x) / x
             // 10% window
             laplacianCoeff = 2.0066 * _mu + 1.0122 * _lambda;
-            //// 20% window
-            //m_laplacian_coeff = 2.0260 * _mu + 1.0480 * _lambda;
             break;
         default:
             break;
@@ -120,7 +116,7 @@ Float FEMConstraint::computeStressAndEnergyDensity(const EgMat3f& F, EgMat3f& P)
             singularValueDecomp(U, SIGMA, V, F);
             const EgMat3f R          = U * V.transpose();
             const EgMat3f FmR        = F - R;
-            const Float traceRTFm3 = (R.transpose() * F).trace() - 3;
+            const Float   traceRTFm3 = (R.transpose() * F).trace() - 3;
             P         = 2 * _mu * FmR + _lambda * traceRTFm3 * R;
             e_density = _mu * FmR.squaredNorm() + 0.5f * _lambda * traceRTFm3 * traceRTFm3;
         }
@@ -128,7 +124,7 @@ Float FEMConstraint::computeStressAndEnergyDensity(const EgMat3f& F, EgMat3f& P)
         case Material::StVK: {
             const EgMat3f I      = EgMat3f::Identity();
             const EgMat3f E      = 0.5f * (F.transpose() * F - I);
-            const Float traceE = E.trace();
+            const Float   traceE = E.trace();
             P = F * (2 * _mu * E + _lambda * traceE * I);
             const Float J = F.determinant();
             e_density = _mu * E.squaredNorm() + 0.5f * _lambda * traceE * traceE;
@@ -147,7 +143,7 @@ Float FEMConstraint::computeStressAndEnergyDensity(const EgMat3f& F, EgMat3f& P)
             if(J == 0) { /* degenerated tet */
                 break;
             }
-            const Float J0    = _neohookean_clamp_value;
+            const Float   J0    = _neohookean_clamp_value;
             const EgMat3f FinvT = F.inverse().transpose(); /* F is invertible if J != 0 */
             if(J > J0) {
                 const Float logJ = std::log(J);
@@ -176,7 +172,7 @@ Float FEMConstraint::computeStressAndEnergyDensity(const EgMat3f& F, EgMat3f& P)
 Float FEMConstraint::evaluateEnergyAndGradient(const EgVecXf& x, EgVecXf& gradient) const {
     EgMat3f       P;
     const EgMat3f F         = getMatrixDs(x) * _Dm_inv;
-    const Float e_density = computeStressAndEnergyDensity(F, P);
+    const Float   e_density = computeStressAndEnergyDensity(F, P);
     const EgMat3f H         = _w * P * _Dm_inv_T;
     EgVec3f       H3        = EgVec3f::Zero();
     for(UnsignedInt i = 0; i < 3; i++) {

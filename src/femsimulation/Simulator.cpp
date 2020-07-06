@@ -32,6 +32,12 @@
 #include "Simulator.h"
 
 namespace Magnum { namespace Examples {
+Simulator::~Simulator() {
+    for(Constraint* c : _constraints) {
+        delete c;
+    }
+}
+
 void Simulator::reset() {
     /* Reset timing */
     _generalParams.time = 0;
@@ -40,13 +46,13 @@ void Simulator::reset() {
     _windParams.enable = false;
 
     /* Reset mesh data */
-    m_mesh->reset();
+    _mesh->reset();
 }
 
 void Simulator::advanceStep() {
-    if(m_constraints.size() == 0) {
+    if(_constraints.size() == 0) {
         initConstraints();
-        CORRADE_INTERNAL_ASSERT(m_constraints.size() > 0);
+        CORRADE_INTERNAL_ASSERT(_constraints.size() > 0);
     }
     /* Enable wind if applicable */
     if(_windParams.timeEnable >= 0 && _generalParams.time >= _windParams.timeEnable && !_windParams.enable) {
@@ -59,9 +65,9 @@ void Simulator::advanceStep() {
     _generalParams.dt = _generalParams.dt / _generalParams.subSteps;
 
     for(int step = 0; step < _generalParams.subSteps; ++step) {
-        _integration.y = m_mesh->_positions +
-                          m_mesh->_velocities * _generalParams.dt +
-                          m_mesh->_invMassMatrix * _integration.externalForces * _generalParams.dt * _generalParams.dt;
+        _integration.y = _mesh->_positions +
+                         _mesh->_velocities * _generalParams.dt +
+                         _mesh->_invMassMatrix * _integration.externalForces * _generalParams.dt * _generalParams.dt;
 
         EgVecXf x = _integration.y; /* x will be modified during line search */
         _lineSearch.firstIteration = true;
@@ -71,10 +77,10 @@ void Simulator::advanceStep() {
             _lineSearch.firstIteration = false;
         }
 
-        m_mesh->_velocities = (x - m_mesh->_positions) / _generalParams.dt;
-        m_mesh->_positions  = x;
+        _mesh->_velocities = (x - _mesh->_positions) / _generalParams.dt;
+        _mesh->_positions  = x;
         if(std::abs(_generalParams.damping) > 0) {
-            m_mesh->_velocities *= 1 - _generalParams.damping;
+            _mesh->_velocities *= 1 - _generalParams.damping;
         }
     }
     _generalParams.dt    = old_dt;
@@ -82,7 +88,7 @@ void Simulator::advanceStep() {
 }
 
 void Simulator::updateConstraintParameters() {
-    for(const auto c: m_constraints) {
+    for(const auto c: _constraints) {
         if(c->type() == Constraint::Type::FEM) {
             static_cast<FEMConstraint*>(c)->setFEMMaterial(
                 static_cast<FEMConstraint::Material>(_materialParams.type),
@@ -97,40 +103,40 @@ void Simulator::updateConstraintParameters() {
 }
 
 void Simulator::initConstraints() {
-    if(m_mesh->_fixedVerts.size() == 0) {
+    if(_mesh->_fixedVerts.size() == 0) {
         Fatal{} << "No fixed vertex found. You must set up fixed vertices.";
     }
     /* Setup attachment constraints */
-    for(const auto vIdx : m_mesh->_fixedVerts) {
-        const EgVec3f fixedPoint = m_mesh->_positions.block3(vIdx);
-        arrayAppend(m_constraints, Containers::InPlaceInit,
+    for(const auto vIdx : _mesh->_fixedVerts) {
+        const EgVec3f fixedPoint = _mesh->_positions.block3(vIdx);
+        arrayAppend(_constraints, Containers::InPlaceInit,
                     new AttachmentConstraint(vIdx, fixedPoint, _generalParams.attachmentStiffness));
     }
 
     /* Compute mass for the vertices */
     Float total_volume = 0;
-    m_mesh->_massMatrix.resize(3 * m_mesh->_numVerts);
-    m_mesh->_massMatrix1D.resize(m_mesh->_numVerts);
-    m_mesh->_invMassMatrix.resize(3 * m_mesh->_numVerts);
-    m_mesh->_massMatrix.setZero();
-    m_mesh->_massMatrix1D.setZero();
-    m_mesh->_invMassMatrix.setZero();
+    _mesh->_massMatrix.resize(3 * _mesh->_numVerts);
+    _mesh->_massMatrix1D.resize(_mesh->_numVerts);
+    _mesh->_invMassMatrix.resize(3 * _mesh->_numVerts);
+    _mesh->_massMatrix.setZero();
+    _mesh->_massMatrix1D.setZero();
+    _mesh->_invMassMatrix.setZero();
 
-    for(const auto& tet:  m_mesh->_tets) {
-        FEMConstraint* c = new FEMConstraint(tet, m_mesh->_positions_t0);
+    for(const auto& tet:  _mesh->_tets) {
+        FEMConstraint* c = new FEMConstraint(tet, _mesh->_positions_t0);
         c->setFEMMaterial(static_cast<FEMConstraint::Material>(_materialParams.type),
                           _materialParams.mu, _materialParams.lambda, _materialParams.kappa);
-        total_volume += c->getMassContribution(m_mesh->_massMatrix.diagonal(),
-                                               m_mesh->_massMatrix1D.diagonal());
-        arrayAppend(m_constraints, static_cast<Constraint*>(c));
+        total_volume += c->getMassContribution(_mesh->_massMatrix.diagonal(),
+                                               _mesh->_massMatrix1D.diagonal());
+        arrayAppend(_constraints, static_cast<Constraint*>(c));
     }
-    m_mesh->_massMatrix   = m_mesh->_massMatrix * (m_mesh->_totalMass / total_volume);
-    m_mesh->_massMatrix1D = m_mesh->_massMatrix1D * (m_mesh->_totalMass / total_volume);
+    _mesh->_massMatrix   = _mesh->_massMatrix * (_mesh->_totalMass / total_volume);
+    _mesh->_massMatrix1D = _mesh->_massMatrix1D * (_mesh->_totalMass / total_volume);
 
     /* Compute inverse mass for the vertices */
-    m_mesh->_invMassMatrix.resize(3 * m_mesh->_numVerts);
-    for(UnsignedInt i = 0; i < 3 * m_mesh->_numVerts; ++i) {
-        m_mesh->_invMassMatrix.diagonal()[i] = 1.0f / m_mesh->_massMatrix.diagonal()[i];
+    _mesh->_invMassMatrix.resize(3 * _mesh->_numVerts);
+    for(UnsignedInt i = 0; i < 3 * _mesh->_numVerts; ++i) {
+        _mesh->_invMassMatrix.diagonal()[i] = 1.0f / _mesh->_massMatrix.diagonal()[i];
     }
 }
 
@@ -139,11 +145,11 @@ void Simulator::calculateExternalForce(bool addWind) {
     if(addWind) {
         force.z() = (std::sin((_generalParams.time - _windParams.timeEnable) * _windParams.frequency) + 0.5f) * _windParams.magnitude;
     }
-    _integration.externalForces.resize(m_mesh->_numVerts * 3);
-    for(UnsignedInt i = 0; i < m_mesh->_numVerts; ++i) {
+    _integration.externalForces.resize(_mesh->_numVerts * 3);
+    for(UnsignedInt i = 0; i < _mesh->_numVerts; ++i) {
         _integration.externalForces.block3(i) = force;
     }
-    _integration.externalForces = m_mesh->_massMatrix * _integration.externalForces;
+    _integration.externalForces = _mesh->_massMatrix * _integration.externalForces;
 }
 
 bool Simulator::performLBFGSOneIteration(EgVecXf& x) {
@@ -164,7 +170,7 @@ bool Simulator::performLBFGSOneIteration(EgVecXf& x) {
         sQueue.clear();
         prefactorize();
 
-        currentEnergy        = evaluateEnergyAndGradient(x, currentGrad);
+        currentEnergy       = evaluateEnergyAndGradient(x, currentGrad);
         _lbfgs.lastX        = x;
         _lbfgs.lastGradient = currentGrad;
 
@@ -225,12 +231,12 @@ bool Simulator::performLBFGSOneIteration(EgVecXf& x) {
 Float Simulator::evaluateEnergyAndGradient(const EgVecXf& x, EgVecXf& gradient) {
     const Float   hSqr          = _generalParams.dt * _generalParams.dt;
     const EgVecXf xmy           = x - _integration.y;
-    const EgVecXf Mxmy          = m_mesh->_massMatrix * xmy;
+    const EgVecXf Mxmy          = _mesh->_massMatrix * xmy;
     const Float   energyInertia = 0.5f * xmy.transpose() * Mxmy;
-    gradient.resize(m_mesh->_numVerts * 3);
+    gradient.resize(_mesh->_numVerts * 3);
     gradient.setZero();
     Float energyConstraints = 0;
-    for(const auto c: m_constraints) {
+    for(const auto c: _constraints) {
         energyConstraints += c->evaluateEnergyAndGradient(x, gradient);
     }
     gradient = Mxmy + hSqr * gradient;
@@ -252,7 +258,7 @@ EgVecXf Simulator::lbfgsKernelLinearSolve(const EgVecXf& rhs) {
 
 Float Simulator::linesearch(const EgVecXf& x, Float energy, const EgVecXf& gradDir,
                             const EgVecXf& descentDir, Float& nextEnergy, EgVecXf& nextGradDir) {
-    EgVecXf x_plus_tdx(m_mesh->_numVerts * 3);
+    EgVecXf x_plus_tdx(_mesh->_numVerts * 3);
     Float   t      = 1.0f / _lineSearch.beta;
     Float   objVal = energy;
     do{
@@ -278,15 +284,15 @@ void Simulator::prefactorize() {
     if(!_lbfgs.prefactored) {
         /* Compute the Laplacian matrix */
         Containers::Array<EgTripletf> triplets;
-        for(const auto c: m_constraints) {
+        for(const auto c: _constraints) {
             c->getWLaplacianContribution(triplets);
         }
         EgSparseMatf weightedLaplacian1D;
-        weightedLaplacian1D.resize(m_mesh->_numVerts, m_mesh->_numVerts);
+        weightedLaplacian1D.resize(_mesh->_numVerts, _mesh->_numVerts);
         weightedLaplacian1D.setFromTriplets(triplets.begin(), triplets.end());
         weightedLaplacian1D *= (_generalParams.dt * _generalParams.dt);
         for(UnsignedInt i = 0; i < weightedLaplacian1D.rows(); ++i) {
-            weightedLaplacian1D.coeffRef(i, i) += m_mesh->_massMatrix1D.diagonal()[i];
+            weightedLaplacian1D.coeffRef(i, i) += _mesh->_massMatrix1D.diagonal()[i];
         }
 
         /* Prefactor the matrix */

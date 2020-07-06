@@ -143,11 +143,11 @@ FEMSimulationExample::FEMSimulationExample(const Arguments& arguments) : Platfor
         GL::Renderer::BlendFunction::SourceAlpha,
         GL::Renderer::BlendFunction::OneMinusSourceAlpha);
 
-    /* Setup scene objects and camera */
+    /* Setup the wireframe grid as floor */
     _grid.emplace(&_scene, &_drawables);
     _grid->transform(Matrix4::translation(Vector3{ 0, -30, -100 }) * Matrix4::scaling(Vector3{ 30 }));
 
-    /* Setup FEM solver, which also setup camera */
+    /* Setup FEM solver, which also setups camera */
     setupScene();
 }
 
@@ -170,10 +170,9 @@ void FEMSimulationExample::drawEvent() {
     if(!_pause) {
         _timer.tick();
         _simulator->advanceStep();
-        _timer.tock();
         static UnsignedInt count { 0 };
         ++count;
-        if(count == 10) {
+        if(count == 10) { /* Record time every 10 frames */
             _frameTime[_offset] = _timer.tock();
             _lastFrameTime      = _frameTime[_offset];
             _offset = (_offset + 1) % FrameTimeHistory;
@@ -194,11 +193,9 @@ void FEMSimulationExample::drawEvent() {
         stopTextInput();
     }
     _camera->update();
-    _camera->draw(_drawables); /* draw grid */
+    _camera->draw(_drawables); /* draw the wireframe grid */
     _mesh->draw(_camera.get(), Vector2{ framebufferSize() });
-    if(_showMenu) {
-        showMenu();
-    }
+    if(_showMenu) { showMenu(); }
 
     /* Update cursor */
     _ImGuiContext.updateApplicationCursor(*this);
@@ -290,9 +287,7 @@ void FEMSimulationExample::mouseMoveEvent(MouseMoveEvent& event) {
     if(event.modifiers() & MouseMoveEvent::Modifier::Shift) {
         _camera->translate(event.position());
     } else { _camera->rotate(event.position()); }
-
     event.setAccepted();
-    redraw();
 }
 
 void FEMSimulationExample::mouseScrollEvent(MouseScrollEvent& event) {
@@ -301,11 +296,8 @@ void FEMSimulationExample::mouseScrollEvent(MouseScrollEvent& event) {
         event.setAccepted(true);
         return;
     }
-
     const Float delta = event.offset().y();
-    if(std::abs(delta) < 1.0e-2f) {
-        return;
-    }
+    if(std::abs(delta) < 1.0e-2f) { return; }
     _camera->zoom(delta);
     event.setAccepted();
 }
@@ -373,7 +365,7 @@ void FEMSimulationExample::setupScene(Int sceneId) {
                                           upper[2] - lower[2]);
         const Float scaling = 25.0f / maxSize;
 
-        /* Fix the vertices that have y ~~ max_y */
+        /* Fix the vertices that have y near max_y */
         for(UnsignedInt idx = 0; idx < _mesh->_numVerts; ++idx) {
             const EgVec3f& v = _mesh->_positions_t0.block3(idx);
             if(std::abs(v.y() - upper.y()) < 0.05f * maxSize) {
@@ -391,10 +383,12 @@ void FEMSimulationExample::setupScene(Int sceneId) {
     _mesh->reset();
     _simulator.emplace(_mesh.get());
 
-    /* Change the simulation paramteres for the squirrel */
+    /* The default simulation parameters are turned to work well with the long bar
+     * Thus we need to change the simulation paramteres for the squirrel */
     if(sceneId == 1) {
-        _simulator->_generalParams.subSteps = 6;
-        _simulator->_generalParams.damping  = 0.005f;
+        _simulator->_generalParams.dt       = 0.02;
+        _simulator->_generalParams.subSteps = 3;
+        _simulator->_generalParams.damping  = 0.003f;
         _simulator->_windParams.magnitude   = 7;
         _simulator->_materialParams.type    = FEMConstraint::Material::StVK;
         _simulator->_materialParams.mu      = 3;
@@ -418,7 +412,7 @@ void FEMSimulationExample::showMenu() {
     ImGui::PushItemWidth(120);
     if(ImGui::CollapsingHeader("General Simulation Parameters")) {
         ImGui::PushID("General-Parameters");
-        ImGui::InputFloat("Damping", &_simulator->_generalParams.damping);
+        ImGui::InputFloat("Damping", &_simulator->_generalParams.damping, 0.0f, 0.0f, "%.6g");
         if(ImGui::InputFloat("Attachement Stiffness", &_simulator->_generalParams.attachmentStiffness)) {
             _simulator->updateConstraintParameters();
         }
@@ -458,6 +452,7 @@ void FEMSimulationExample::showMenu() {
 
     ImGui::Spacing();
     ImGui::PopItemWidth();
+    ImGui::PushItemWidth(200);
 
     //    if(ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen)) {
     //        ImGui::PushID("Scene");
@@ -507,6 +502,7 @@ void FEMSimulationExample::showMenu() {
         _pause ^= true;
         if(_pause) { _status = "Status: Paused"; }
     }
+    ImGui::PopItemWidth();
 }
 } }
 

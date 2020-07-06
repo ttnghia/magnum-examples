@@ -104,8 +104,8 @@ void TetMesh::loadMesh(const char* meshFile) {
 }
 
 void TetMesh::setupShader() {
-    m_vertBuffer = GL::Buffer{};
-    m_mesh       = GL::Mesh{};
+    _vertBuffer = GL::Buffer{};
+    _mesh       = GL::Mesh{};
 
     Containers::ArrayView<const UnsignedInt> indexData(
         reinterpret_cast<const UnsignedInt*>(_triangles.data()), _triangles.size() * 3);
@@ -114,19 +114,19 @@ void TetMesh::setupShader() {
     GL::Buffer indices;
     indices.setData(compressed.first);
 
-    m_mesh.setCount(_triangles.size() * 3)
-        .addVertexBuffer(m_vertBuffer, 0, Shaders::Generic3D::Position{})
+    _mesh.setCount(_triangles.size() * 3)
+        .addVertexBuffer(_vertBuffer, 0, Shaders::Generic3D::Position{})
         .setIndexBuffer(std::move(indices), 0, compressed.second);
 
     /* Please select a good color */
-    //    m_shader.setColor(Color3{ 0, 1, 1 })
-    //    m_shader.setColor(Color3{ Vector3{ 3, 252, 248 } / 255.0 })
-    //    m_shader.setColor(Color3{ Vector3{ 3, 252, 198 } / 255.0 })
-    //    m_shader.setColor(Color3{ 0.275f, 0.08f, 0.4f })
-    //    m_shader.setColor(Color3{ Vector3{ 252, 223, 3 } / 255.0 })
-    //    m_shader.setColor(Color3{ Vector3{ 252, 190, 3 } / 255.0 })
-    //    m_shader.setColor(Color3{ Vector3{ 252, 115, 3 } / 255.0 })
-    m_shader.setColor(Color3{ Vector3{ 252, 186, 3 } / 255.0 })
+    //    _shader.setColor(Color3{ 0, 1, 1 })
+    //    _shader.setColor(Color3{ Vector3{ 3, 252, 248 } / 255.0 })
+    //    _shader.setColor(Color3{ Vector3{ 3, 252, 198 } / 255.0 })
+    //    _shader.setColor(Color3{ 0.275f, 0.08f, 0.4f })
+    //    _shader.setColor(Color3{ Vector3{ 252, 223, 3 } / 255.0 })
+    //    _shader.setColor(Color3{ Vector3{ 252, 190, 3 } / 255.0 })
+    //    _shader.setColor(Color3{ Vector3{ 252, 115, 3 } / 255.0 })
+    _shader.setColor(Color3{ Vector3{ 252, 186, 3 } / 255.0 })
         .setWireframeColor(Color3{ 0 })
         .setWireframeWidth(0.5f);
 }
@@ -134,11 +134,11 @@ void TetMesh::setupShader() {
 void TetMesh::draw(ArcBallCamera* camera, const Vector2& viewportSize) {
     Containers::ArrayView<const Float> data(reinterpret_cast<const Float*>(_positions.data()),
                                             _positions.size());
-    m_vertBuffer.setData(data, GL::BufferUsage::DynamicDraw);
-    m_shader.setTransformationMatrix(camera->viewMatrix())
+    _vertBuffer.setData(data, GL::BufferUsage::DynamicDraw);
+    _shader.setTransformationMatrix(camera->viewMatrix())
         .setProjectionMatrix(camera->camera().projectionMatrix())
         .setViewportSize(viewportSize)
-        .draw(m_mesh);
+        .draw(_mesh);
 }
 
 void TetMesh::reset() {

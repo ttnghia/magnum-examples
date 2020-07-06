@@ -59,9 +59,9 @@ public:
 
 private:
     /* Render helpers */
-    GL::Mesh                  m_mesh{ NoCreate };
-    GL::Buffer                m_vertBuffer{ NoCreate };
-    Shaders::MeshVisualizer3D m_shader{ Shaders::MeshVisualizer3D::Flag::Wireframe };
+    GL::Mesh                  _mesh{ NoCreate };
+    GL::Buffer                _vertBuffer{ NoCreate };
+    Shaders::MeshVisualizer3D _shader{ Shaders::MeshVisualizer3D::Flag::Wireframe };
 
     /* Public mesh data */
 public:
