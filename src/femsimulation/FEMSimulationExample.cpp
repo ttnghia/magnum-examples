@@ -40,8 +40,8 @@
 
 #include "../arcball/ArcBallCamera.h"
 #include "../fluidsimulation3d/DrawableObjects/WireframeObjects.h"
-#include "Mesh.h"
 #include "Simulator.h"
+#include "TetMesh.h"
 
 #include <chrono>
 #include <string>
@@ -145,7 +145,7 @@ FEMSimulationExample::FEMSimulationExample(const Arguments& arguments) : Platfor
 
     /* Setup the wireframe grid as floor */
     _grid.emplace(&_scene, &_drawables);
-    _grid->transform(Matrix4::translation(Vector3{ 0, -30, -100 }) * Matrix4::scaling(Vector3{ 30 }));
+    _grid->transform(Matrix4::translation(Vector3::yAxis(-30)) * Matrix4::scaling(Vector3{ 30 }));
 
     /* Setup FEM solver, which also setups camera */
     setupScene();
@@ -298,7 +298,7 @@ void FEMSimulationExample::mouseScrollEvent(MouseScrollEvent& event) {
     }
     const Float delta = event.offset().y();
     if(std::abs(delta) < 1.0e-2f) { return; }
-    _camera->zoom(delta);
+    _camera->zoom(delta * 5); /* zooming speed in this application is faster due to mesh large scale */
     event.setAccepted();
 }
 
@@ -346,7 +346,8 @@ void FEMSimulationExample::setupScene(Int sceneId) {
 
         _mesh.emplace("squirrel.mesh");
 
-        /* Transform the squirrel mesh, since the original mesh is small
+        /*
+         * Transform the squirrel mesh, since the original mesh is small
          * Firstly compute the squirrel bounding box, then rescale/translate
          */
         EgVec3f lower(1e10, 1e10, 1e10);
@@ -386,7 +387,7 @@ void FEMSimulationExample::setupScene(Int sceneId) {
     /* The default simulation parameters are turned to work well with the long bar
      * Thus we need to change the simulation paramteres for the squirrel */
     if(sceneId == 1) {
-        _simulator->_generalParams.dt       = 0.02;
+        _simulator->_generalParams.dt       = 0.02f;
         _simulator->_generalParams.subSteps = 3;
         _simulator->_generalParams.damping  = 0.003f;
         _simulator->_windParams.magnitude   = 7;
@@ -437,9 +438,11 @@ void FEMSimulationExample::showMenu() {
         ImGui::PushID("FEM-Material");
         const char* items[] = { "Corotational", "StVK", "NeoHookean-ExtendLog" };
         ImGui::PopItemWidth();
+        ImGui::PushItemWidth(200);
         if(ImGui::Combo("Material", &_simulator->_materialParams.type, items, IM_ARRAYSIZE(items))) {
             _simulator->updateConstraintParameters();
         }
+        ImGui::PopItemWidth();
         ImGui::PushItemWidth(120);
         if(ImGui::InputFloat("mu", &_simulator->_materialParams.mu)
            || ImGui::InputFloat("lambda", &_simulator->_materialParams.lambda)
@@ -454,16 +457,6 @@ void FEMSimulationExample::showMenu() {
     ImGui::PopItemWidth();
     ImGui::PushItemWidth(200);
 
-    //    if(ImGui::CollapsingHeader("Scene", ImGuiTreeNodeFlags_DefaultOpen)) {
-    //        ImGui::PushID("Scene");
-    //        const char* items[] = { "Long Bar", "Squirrel" };
-    //        static int  sceneId { 0 };
-    //        if(ImGui::Combo("Scene", &sceneId, items, IM_ARRAYSIZE(items))) {
-    //            _pause = true;
-    //            setupScene(sceneId);
-    //        }
-    //        ImGui::PopID();
-    //    }
     if(ImGui::CollapsingHeader("Timing", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::PushID("Timing");
         char buff[32];
@@ -478,24 +471,22 @@ void FEMSimulationExample::showMenu() {
                          minVal - 0.1f, maxVal + 0.1f, ImVec2(0, 80.0f));
         ImGui::PopID();
     }
+
     ImGui::Text(_status.c_str());
     ImGui::Separator();
-    {
-        const char* items[] = { "Long Bar", "Squirrel Head" };
-        static int  sceneId { 1 };
-        if(ImGui::Combo("Scene", &sceneId, items, IM_ARRAYSIZE(items))) {
-            _pause = true;
-            setupScene(sceneId);
-        }
+
+    const char* items[] = { "Long Bar", "Squirrel Head" };
+    static int  sceneId { 1 };
+    if(ImGui::Combo("Scene", &sceneId, items, IM_ARRAYSIZE(items))) {
+        _pause = true;
+        setupScene(sceneId);
     }
+    ImGui::ColorEdit3("Mesh color", _mesh->_meshColor.data());
     ImGui::Separator();
-    if(ImGui::Button("Reset camera")) {
-        _camera->reset();
-    }
+
+    if(ImGui::Button("Reset camera")) { _camera->reset(); }
     ImGui::SameLine();
-    if(ImGui::Button("Reset Simulation")) {
-        resetSimulation();
-    }
+    if(ImGui::Button("Reset Simulation")) { resetSimulation(); }
     ImGui::SameLine();
     if((_pause && ImGui::Button("Resume Simulation"))
        || (!_pause && ImGui::Button("Pause Simulation"))) {

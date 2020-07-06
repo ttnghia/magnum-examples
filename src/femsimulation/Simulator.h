@@ -30,17 +30,17 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "Constraints.h"
-#include "MathDefinitions.h"
-#include "Mesh.h"
-
 #include <deque>
+
+#include "Constraints.h"
+#include "TetMesh.h"
 
 namespace Magnum { namespace Examples {
 class Simulator {
 public:
     Simulator(TetMesh* mesh) : _mesh(mesh) { CORRADE_INTERNAL_ASSERT(_mesh != nullptr); }
     ~Simulator();
+
     void reset();
     void advanceStep();
     void updateConstraintParameters();
@@ -49,11 +49,13 @@ private:
     void initConstraints();
     void calculateExternalForce(bool addWind = true);
 
-    /* x is passed as the initial guess of the next postion (i.e. inertia term x = y = pos + vel*h + f_ext*h*h/m)
-     * x will be changed during iteration
-     * the final value of x will be the next position vector
+    /* ========== Time integration ========== */
+    /*
+     * x is passed as the initial guess of the next postion (i.e. inertia term x = y = pos + vel*h + f_ext*h*h/m)
+     * x will be changed during iteration, and the final value of x will be the next position vector
      */
-    bool    performLBFGSOneIteration(EgVecXf& x);
+    bool performLBFGSOneIteration(EgVecXf& x);
+
     Float   evaluateEnergyAndGradient(const EgVecXf& x, EgVecXf& gradient);
     EgVecXf lbfgsKernelLinearSolve(const EgVecXf& gf_k);
     Float   linesearch(const EgVecXf& x, Float energy, const EgVecXf& gradDir, const EgVecXf& descentDir,

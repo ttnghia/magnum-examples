@@ -81,14 +81,16 @@ public:
     virtual Float evaluateEnergyAndGradient(const EgVecXf& x, EgVecXf& gradient) const override;
     virtual void  getWLaplacianContribution(Containers::Array<EgTripletf>& laplacian) const override;
 private:
-    EgMat3f getMatrixDs(const EgVecXf& x) const;
+    EgMat3f getDeformGrad(const EgVecXf& x) const;
     void    singularValueDecomp(EgMat3f& U, EgVec3f& SIGMA, EgMat3f& V, const EgMat3f& A, bool signed_svd = true) const;
+    /* Material parameters */
     Material    _material;
     Float       _mu;
     Float       _lambda;
     Float       _kappa;
     const Float _neohookean_clamp_value { 0.1f };
-public:                  /* public access for sag-free initializer */
+
+    /* Internal states */
     Vector4ui _vIDs;
     EgMat3f   _Dm;       /* [x0-x3|x1-x3|x2-x3]       */
     EgMat3f   _Dm_inv;   /* inverse of _Dm           */

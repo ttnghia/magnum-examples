@@ -59,10 +59,10 @@ add_executable(magnum-femsimulation WIN32
     Constraints.h
     FEMSimulationExample.cpp
     MathDefinitions.h
-    Mesh.cpp
-    Mesh.h
     Simulator.cpp
     Simulator.h
+    TetMesh.cpp
+    TetMesh.h
     ${FEMSimulationExample_RESOURCES}
     )
 

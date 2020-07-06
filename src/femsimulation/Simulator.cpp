@@ -33,6 +33,7 @@
 
 namespace Magnum { namespace Examples {
 Simulator::~Simulator() {
+    /* Must do this to avoid memory leak*/
     for(Constraint* c : _constraints) {
         delete c;
     }
@@ -54,10 +55,13 @@ void Simulator::advanceStep() {
         initConstraints();
         CORRADE_INTERNAL_ASSERT(_constraints.size() > 0);
     }
-    /* Enable wind if applicable */
-    if(_windParams.timeEnable >= 0 && _generalParams.time >= _windParams.timeEnable && !_windParams.enable) {
+    /* Enable wind if the system time is larger than timeEnable */
+    if(_windParams.timeEnable >= 0
+       && _generalParams.time >= _windParams.timeEnable
+       && !_windParams.enable) {
         _windParams.enable = true;
     }
+
     calculateExternalForce(_windParams.enable);
 
     /* Change global time step, as it will be used somewhere else */
@@ -103,9 +107,6 @@ void Simulator::updateConstraintParameters() {
 }
 
 void Simulator::initConstraints() {
-    if(_mesh->_fixedVerts.size() == 0) {
-        Fatal{} << "No fixed vertex found. You must set up fixed vertices.";
-    }
     /* Setup attachment constraints */
     for(const auto vIdx : _mesh->_fixedVerts) {
         const EgVec3f fixedPoint = _mesh->_positions.block3(vIdx);
@@ -114,7 +115,7 @@ void Simulator::initConstraints() {
     }
 
     /* Compute mass for the vertices */
-    Float total_volume = 0;
+    Float totalVolume = 0;
     _mesh->_massMatrix.resize(3 * _mesh->_numVerts);
     _mesh->_massMatrix1D.resize(_mesh->_numVerts);
     _mesh->_invMassMatrix.resize(3 * _mesh->_numVerts);
@@ -126,12 +127,12 @@ void Simulator::initConstraints() {
         FEMConstraint* c = new FEMConstraint(tet, _mesh->_positions_t0);
         c->setFEMMaterial(static_cast<FEMConstraint::Material>(_materialParams.type),
                           _materialParams.mu, _materialParams.lambda, _materialParams.kappa);
-        total_volume += c->getMassContribution(_mesh->_massMatrix.diagonal(),
-                                               _mesh->_massMatrix1D.diagonal());
+        totalVolume += c->getMassContribution(_mesh->_massMatrix.diagonal(),
+                                              _mesh->_massMatrix1D.diagonal());
         arrayAppend(_constraints, static_cast<Constraint*>(c));
     }
-    _mesh->_massMatrix   = _mesh->_massMatrix * (_mesh->_totalMass / total_volume);
-    _mesh->_massMatrix1D = _mesh->_massMatrix1D * (_mesh->_totalMass / total_volume);
+    _mesh->_massMatrix   = _mesh->_massMatrix * (_mesh->_totalMass / totalVolume);
+    _mesh->_massMatrix1D = _mesh->_massMatrix1D * (_mesh->_totalMass / totalVolume);
 
     /* Compute inverse mass for the vertices */
     _mesh->_invMassMatrix.resize(3 * _mesh->_numVerts);
@@ -174,7 +175,7 @@ bool Simulator::performLBFGSOneIteration(EgVecXf& x) {
         _lbfgs.lastX        = x;
         _lbfgs.lastGradient = currentGrad;
 
-        EgVecXf p_k = -lbfgsKernelLinearSolve(currentGrad);
+        const EgVecXf p_k = -lbfgsKernelLinearSolve(currentGrad);
         if(-p_k.dot(currentGrad) < epsSMALL || p_k.norm() / x.norm() < epsLARGE) {
             converged = true;
         }
@@ -256,11 +257,11 @@ EgVecXf Simulator::lbfgsKernelLinearSolve(const EgVecXf& rhs) {
     return r;
 }
 
-Float Simulator::linesearch(const EgVecXf& x, Float energy, const EgVecXf& gradDir,
-                            const EgVecXf& descentDir, Float& nextEnergy, EgVecXf& nextGradDir) {
-    EgVecXf x_plus_tdx(_mesh->_numVerts * 3);
-    Float   t      = 1.0f / _lineSearch.beta;
-    Float   objVal = energy;
+Float Simulator::linesearch(const EgVecXf& x, Float energy, const EgVecXf& gradDir, const EgVecXf& descentDir,
+                            Float& nextEnergy, EgVecXf& nextGradDir) {
+    EgVecXf     x_plus_tdx(_mesh->_numVerts * 3);
+    Float       t      = 1.0f / _lineSearch.beta;
+    const Float objVal = energy;
     do{
         t         *= _lineSearch.beta;
         x_plus_tdx = x + t * descentDir;

@@ -30,10 +30,10 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <Corrade/Containers/Array.h>
 #include <Magnum/GL/Buffer.h>
 #include <Magnum/GL/Mesh.h>
-#include <Magnum/GL/Texture.h>
-#include <Magnum/Math/Matrix4.h>
+#include <Magnum/Math/Color.h>
 #include <Magnum/Math/Vector3.h>
 #include <Magnum/Math/Vector4.h>
 #include <Magnum/Shaders/MeshVisualizer.h>
@@ -42,10 +42,8 @@
 
 namespace Magnum { namespace Examples {
 class ArcBallCamera;
-class Simulator;
 
 class TetMesh {
-    friend class Simulator;
 public:
     TetMesh(const char* meshFile, Float totalMass = 1.0f) : _totalMass(totalMass) {
         loadMesh(meshFile);
@@ -55,6 +53,7 @@ public:
     void loadMesh(const char* meshFile);
     void setupShader();
     void draw(ArcBallCamera* camera, const Vector2& viewportSize);
+    void setColor(const Color3& color) { _shader.setColor(color); }
     void reset();
 
 private:
@@ -78,6 +77,7 @@ public:
     Containers::Array<UnsignedInt> _fixedVerts;
     Containers::Array<Vector3ui>   _triangles;
     Containers::Array<Vector4ui>   _tets;
+    Color3 _meshColor;
 };
 } }
 

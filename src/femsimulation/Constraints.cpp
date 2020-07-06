@@ -29,9 +29,9 @@
  */
 
 #include <Corrade/Containers/GrowableArray.h>
+#include <Eigen/SVD>
 
 #include "Constraints.h"
-#include <Eigen/SVD>
 
 namespace Magnum { namespace Examples {
 Float AttachmentConstraint::evaluateEnergyAndGradient(const EgVecXf& x, EgVecXf& gradient) const {
@@ -171,7 +171,7 @@ Float FEMConstraint::computeStressAndEnergyDensity(const EgMat3f& F, EgMat3f& P)
 
 Float FEMConstraint::evaluateEnergyAndGradient(const EgVecXf& x, EgVecXf& gradient) const {
     EgMat3f       P;
-    const EgMat3f F         = getMatrixDs(x) * _Dm_inv;
+    const EgMat3f F         = getDeformGrad(x);
     const Float   e_density = computeStressAndEnergyDensity(F, P);
     const EgMat3f H         = _w * P * _Dm_inv_T;
     EgVec3f       H3        = EgVec3f::Zero();
@@ -191,12 +191,12 @@ void FEMConstraint::getWLaplacianContribution(Containers::Array<EgTripletf>& tri
     }
 }
 
-EgMat3f FEMConstraint::getMatrixDs(const EgVecXf& x) const {
+EgMat3f FEMConstraint::getDeformGrad(const EgVecXf& x) const {
     EgMat3f Ds;
     for(size_t i = 0; i < 3; ++i) {
         Ds.col(i) = x.block3(_vIDs[i]) - x.block3(_vIDs[3]);
     }
-    return Ds;
+    return Ds * _Dm_inv;
 }
 
 void FEMConstraint::singularValueDecomp(EgMat3f& U, EgVec3f& SIGMA, EgMat3f& V, const EgMat3f& A, bool signed_svd) const {
