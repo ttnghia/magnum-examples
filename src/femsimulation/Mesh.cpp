@@ -32,31 +32,23 @@
 #include <Corrade/Containers/ArrayView.h>
 #include <Corrade/Containers/GrowableArray.h>
 #include <Corrade/Utility/Debug.h>
-#include <Magnum/GL/TextureFormat.h>
-#include <Magnum/ImageView.h>
-#include <Magnum/Magnum.h>
+#include <Corrade/Utility/Resource.h>
 #include <Magnum/Math/Color.h>
 #include <Magnum/MeshTools/CompressIndices.h>
-#include <Magnum/Math/Matrix4.h>
-#include <Magnum/Math/Vector3.h>
-#include <Magnum/PixelFormat.h>
 #include <Magnum/Trade/MeshData.h>
-
-#include <fstream>
 
 #include "../arcball/ArcBallCamera.h"
 #include "Mesh.h"
+
+#include <sstream>
 
 namespace Magnum { namespace Examples {
 void TetMesh::loadMesh(const char* meshFile) {
     arrayResize(_triangles, 0);
     arrayResize(_tets,      0);
 
-    std::ifstream infile(meshFile);
-    if(!infile.is_open()) {
-        Fatal{} << "Cannot read file" << meshFile;
-        return;
-    }
+    Utility::Resource rs{ "data" };
+    std::stringstream infile(rs.get(meshFile));
 
     char      buffer[256];
     char      ignore[256];

@@ -30,12 +30,12 @@
 
 #include <Corrade/Containers/GrowableArray.h>
 #include <Corrade/Containers/Pointer.h>
+#include <Magnum/ImGuiIntegration/Context.hpp>
+#include <Magnum/GL/Context.h>
 #include <Magnum/GL/DefaultFramebuffer.h>
 #include <Magnum/GL/Renderer.h>
-#include <Magnum/GL/Context.h>
 #include <Magnum/GL/Version.h>
 #include <Magnum/Math/Vector2.h>
-#include <Magnum/ImGuiIntegration/Context.hpp>
 #include <Magnum/Platform/Sdl2Application.h>
 
 #include "../arcball/ArcBallCamera.h"
@@ -95,9 +95,9 @@ private:
     /* Simulation */
     Containers::Pointer<Simulator> _simulator;
     Containers::Pointer<TetMesh>   _mesh;
-    Timer       _timer;
-    std::string _status { "Status: Paused" };
-    bool        _pause { true };
+    std::string                    _status { "Status: Paused" };
+    Timer _timer;
+    bool  _pause { true };
 
     /* For plotting frame simulation time */
     Float  _frameTime[FrameTimeHistory];
@@ -326,7 +326,7 @@ void FEMSimulationExample::setupScene(Int sceneId) {
         _camera.emplace(_scene, eye, viewCenter, up, fov, windowSize(), framebufferSize());
         _camera->setLagging(0.85f);
 
-        _mesh.emplace("Data/longbar.mesh");
+        _mesh.emplace("longbar.mesh");
 
         /* Setup fixed vertices */
         /* Find the maximum x value */
@@ -352,7 +352,7 @@ void FEMSimulationExample::setupScene(Int sceneId) {
         _camera.emplace(_scene, eye, viewCenter, up, fov, windowSize(), framebufferSize());
         _camera->setLagging(0.85f);
 
-        _mesh.emplace("Data/squirrel.mesh");
+        _mesh.emplace("squirrel.mesh");
 
         /* Transform the squirrel mesh, since the original mesh is small
          * Firstly compute the squirrel bounding box, then rescale/translate
@@ -395,10 +395,10 @@ void FEMSimulationExample::setupScene(Int sceneId) {
     if(sceneId == 1) {
         _simulator->_generalParams.subSteps = 6;
         _simulator->_generalParams.damping  = 0.005f;
-        _simulator->_windParams.magnitude         = 7;
-        _simulator->_materialParams.type       = FEMConstraint::Material::StVK;
-        _simulator->_materialParams.mu         = 3;
-        _simulator->_materialParams.lambda     = 3;
+        _simulator->_windParams.magnitude   = 7;
+        _simulator->_materialParams.type    = FEMConstraint::Material::StVK;
+        _simulator->_materialParams.mu      = 3;
+        _simulator->_materialParams.lambda  = 3;
         _simulator->updateConstraintParameters();
     }
 }
