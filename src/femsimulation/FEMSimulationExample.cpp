@@ -481,10 +481,10 @@ void FEMSimulationExample::showMenu() {
         _pause = true;
         setupScene(sceneId);
     }
-    ImGui::ColorEdit3("Mesh color", _mesh->_meshColor.data());
+    ImGui::ColorEdit3("Mesh Color", _mesh->_meshColor.data());
     ImGui::Separator();
 
-    if(ImGui::Button("Reset camera")) { _camera->reset(); }
+    if(ImGui::Button("Reset Camera")) { _camera->reset(); }
     ImGui::SameLine();
     if(ImGui::Button("Reset Simulation")) { resetSimulation(); }
     ImGui::SameLine();
