@@ -378,7 +378,7 @@ AreaLightsExample::AreaLightsExample(const Arguments& arguments): Platform::Appl
     {
         _ui.create(*this, Ui::DarkTheme{Ui::DarkTheme::Feature::Animations});
         /** @todo make a builtin API for this, or, better, make it automatic */
-        CORRADE_INTERNAL_ASSERT(_ui.textLayer().shared().font(Ui::fontHandle(2, 1)).fillGlyphCache(_ui.textLayer().shared().glyphCache(), "ƒ₀"));
+        CORRADE_INTERNAL_ASSERT(_ui.textLayer().shared().font(Ui::fontHandle(0, 1)).fillGlyphCache(_ui.textLayer().shared().glyphCache(), "ƒ₀"));
 
         /* Material properties */
         Ui::NumericStorage<Float> metalness{_ui, DirectInit, 0.5f};
