@@ -57,6 +57,7 @@
 #include <Magnum/GL/Renderer.h>
 #include <Magnum/GL/Texture.h>
 #include <Magnum/Math/Color.h>
+#include <Magnum/Math/Time.h>
 #include <Magnum/Platform/Sdl2Application.h>
 #include <Magnum/SceneGraph/Camera.h>
 #include <Magnum/SceneGraph/Drawable.h>
@@ -139,7 +140,7 @@ dart::dynamics::SkeletonPtr createFloor() {
 
 }
 
-using namespace Magnum::Math::Literals;
+using namespace Math::Literals;
 
 typedef ResourceManager<GL::Buffer, GL::Mesh, Shaders::PhongGL> ViewerResourceManager;
 typedef SceneGraph::Object<SceneGraph::MatrixTransformation3D> Object3D;
@@ -283,10 +284,10 @@ DartExample::DartExample(const Arguments& arguments): Platform::Application{argu
     /* Add packages (needed for URDF loading) */
     loader.addPackageDirectory("iiwa14", Utility::Path::join(resPath, "iiwa14"));
     loader.addPackageDirectory("robotiq", Utility::Path::join(resPath, "robotiq"));
-    std::string filename = Utility::Path::join(resPath, "iiwa14_simple.urdf");
+    Containers::String filename = Utility::Path::join(resPath, "iiwa14_simple.urdf");
 
     /* First load the KUKA manipulator */
-    _manipulator = loader.parseSkeleton(filename);
+    _manipulator = loader.parseSkeleton(std::string{filename});
     if(!_manipulator) {
         Error{} << "Failed to load" << filename << Debug::nospace << ", exiting.";
         Error{} << "Use the --urdf option to specify where this file is located.";
@@ -307,7 +308,7 @@ DartExample::DartExample(const Arguments& arguments): Platform::Application{argu
 
     /* Load the Robotiq 2-finger gripper */
     filename = Utility::Path::join(resPath, "robotiq.urdf");
-    auto gripper_skel = loader.parseSkeleton(filename);
+    auto gripper_skel = loader.parseSkeleton(std::string{filename});
     if(!gripper_skel) {
         Error{} << "Failed to load" << filename << Debug::nospace << ", exiting.";
         Error{} << "Use the --urdf option to specify where this file is located.";
@@ -382,12 +383,17 @@ DartExample::DartExample(const Arguments& arguments): Platform::Application{argu
     _dartWorld.reset(new DartIntegration::World{*dartObj, *_world});
 
     /* Phong shader instances */
-    _resourceManager.set("color", new Shaders::PhongGL{{}, 2});
-    _resourceManager.set("texture", new Shaders::PhongGL{Shaders::PhongGL::Flag::DiffuseTexture, 2});
+    _resourceManager.set("color", new Shaders::PhongGL{
+        Shaders::PhongGL::Configuration{}
+            .setLightCount(2)});
+    _resourceManager.set("texture", new Shaders::PhongGL{
+        Shaders::PhongGL::Configuration{}
+            .setFlags(Shaders::PhongGL::Flag::DiffuseTexture)
+            .setLightCount(2)});
 
     /* Loop at 60 Hz max */
     setSwapInterval(1);
-    setMinimalLoopPeriod(16);
+    setMinimalLoopPeriod(16.0_msec);
 
     redraw();
 }
@@ -479,41 +485,41 @@ void DartExample::drawEvent() {
 }
 
 void DartExample::keyPressEvent(KeyEvent& event) {
-    if(event.key() == KeyEvent::Key::Down) {
+    if(event.key() == Key::Down) {
         _cameraObject->rotateX(5.0_degf);
-    } else if(event.key() == KeyEvent::Key::Up) {
+    } else if(event.key() == Key::Up) {
         _cameraObject->rotateX(-5.0_degf);
-    } else if(event.key() == KeyEvent::Key::Left) {
+    } else if(event.key() == Key::Left) {
         _cameraRig->rotateY(-5.0_degf);
-    } else if(event.key() == KeyEvent::Key::Right) {
+    } else if(event.key() == Key::Right) {
         _cameraRig->rotateY(5.0_degf);
-    } else if(event.key() == KeyEvent::Key::C) {
+    } else if(event.key() == Key::C) {
         _gripperDesiredPosition = 0.3;
-    } else if(event.key() == KeyEvent::Key::O) {
+    } else if(event.key() == Key::O) {
         _gripperDesiredPosition = 0.;
-    } else if(event.key() == KeyEvent::Key::U && _state == State::Active) {
+    } else if(event.key() == Key::U && _state == State::Active) {
         _desiredPosition[2] += 0.1;
-    } else if(event.key() == KeyEvent::Key::D && _state == State::Active) {
+    } else if(event.key() == Key::D && _state == State::Active) {
         _desiredPosition[2] -= 0.1;
-    } else if(event.key() == KeyEvent::Key::Z && _state == State::Active) {
+    } else if(event.key() == Key::Z && _state == State::Active) {
         _desiredPosition[1] += 0.2;
-    } else if(event.key() == KeyEvent::Key::X && _state == State::Active) {
+    } else if(event.key() == Key::X && _state == State::Active) {
         _desiredPosition[1] -= 0.2;
-    } else if(event.key() == KeyEvent::Key::R) {
+    } else if(event.key() == Key::R) {
         _desiredPosition = _redBoxSkel->getPositions().tail(3);
         _desiredPosition[2] += 0.25;
         _state = State::Active;
-    } else if(event.key() == KeyEvent::Key::G) {
+    } else if(event.key() == Key::G) {
         _desiredPosition = _greenBoxSkel->getPositions().tail(3);
         _desiredPosition[2] += 0.25;
         _state = State::Active;
-    } else if(event.key() == KeyEvent::Key::B) {
+    } else if(event.key() == Key::B) {
         _desiredPosition = _blueBoxSkel->getPositions().tail(3);
         _desiredPosition[2] += 0.25;
         _state = State::Active;
-    } else if(event.key() == KeyEvent::Key::H) {
+    } else if(event.key() == Key::H) {
         _state = State::Home;
-    } else if(event.key() == KeyEvent::Key::Space) {
+    } else if(event.key() == Key::Space) {
         /* Reset _state machine */
         _state = State::Home;
         /* Reset manipulator */
