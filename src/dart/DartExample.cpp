@@ -48,7 +48,6 @@
 #include <Corrade/Containers/Reference.h>
 #include <Corrade/Utility/Arguments.h>
 #include <Corrade/Utility/Path.h>
-#include <Magnum/ResourceManager.h>
 #include <Magnum/DartIntegration/ConvertShapeNode.h>
 #include <Magnum/DartIntegration/World.h>
 #include <Magnum/GL/Buffer.h>
@@ -142,7 +141,6 @@ dart::dynamics::SkeletonPtr createFloor() {
 
 using namespace Math::Literals;
 
-typedef ResourceManager<GL::Buffer, GL::Mesh, Shaders::PhongGL> ViewerResourceManager;
 typedef SceneGraph::Object<SceneGraph::MatrixTransformation3D> Object3D;
 typedef SceneGraph::Scene<SceneGraph::MatrixTransformation3D> Scene3D;
 
@@ -156,7 +154,7 @@ struct MaterialData{
 
 class DrawableObject: public Object3D, SceneGraph::Drawable3D {
     public:
-        explicit DrawableObject(ViewerResourceManager& resourceManager, std::vector<Containers::Reference<GL::Mesh>>&& meshes, std::vector<MaterialData>&& materials, Object3D* parent, SceneGraph::DrawableGroup3D* group);
+        explicit DrawableObject(Shaders::PhongGL& colorShader, Shaders::PhongGL& textureShader, std::vector<Containers::Reference<GL::Mesh>>&& meshes, std::vector<MaterialData>&& materials, Object3D* parent, SceneGraph::DrawableGroup3D* group);
 
         DrawableObject& setMeshes(std::vector<Containers::Reference<GL::Mesh>>&& meshes){
             _meshes = std::move(meshes);
@@ -181,8 +179,8 @@ class DrawableObject: public Object3D, SceneGraph::Drawable3D {
     private:
         void draw(const Matrix4& transformationMatrix, SceneGraph::Camera3D& camera) override;
 
-        Resource<Shaders::PhongGL> _colorShader;
-        Resource<Shaders::PhongGL> _textureShader;
+        Shaders::PhongGL& _colorShader;
+        Shaders::PhongGL& _textureShader;
         std::vector<Containers::Reference<GL::Mesh>> _meshes;
         std::vector<MaterialData> _materials;
         std::vector<bool> _isSoftBody;
@@ -203,7 +201,8 @@ class DartExample: public Platform::Application {
 
         void updateManipulator();
 
-        ViewerResourceManager _resourceManager;
+        Shaders::PhongGL _colorShader{NoCreate};
+        Shaders::PhongGL _textureShader{NoCreate};
 
         Scene3D _scene;
         SceneGraph::DrawableGroup3D _drawables;
@@ -383,13 +382,11 @@ DartExample::DartExample(const Arguments& arguments): Platform::Application{argu
     _dartWorld.reset(new DartIntegration::World{*dartObj, *_world});
 
     /* Phong shader instances */
-    _resourceManager.set("color", new Shaders::PhongGL{
-        Shaders::PhongGL::Configuration{}
-            .setLightCount(2)});
-    _resourceManager.set("texture", new Shaders::PhongGL{
-        Shaders::PhongGL::Configuration{}
-            .setFlags(Shaders::PhongGL::Flag::DiffuseTexture)
-            .setLightCount(2)});
+    _colorShader = Shaders::PhongGL{Shaders::PhongGL::Configuration{}
+        .setLightCount(2)};
+    _textureShader = Shaders::PhongGL{Shaders::PhongGL::Configuration{}
+        .setFlags(Shaders::PhongGL::Flag::DiffuseTexture)
+        .setLightCount(2)};
 
     /* Loop at 60 Hz max */
     setSwapInterval(1);
@@ -461,7 +458,7 @@ void DartExample::drawEvent() {
            anywhere else anymore, so move them in to avoid copies. */
         auto it = _drawableObjects.insert(std::make_pair(&object, nullptr));
         if(it.second) {
-            auto drawableObj = new DrawableObject{_resourceManager,
+            auto drawableObj = new DrawableObject{_colorShader, _textureShader,
                 std::move(meshes), std::move(materials),
                 static_cast<Object3D*>(&(object.object())), &_drawables};
             drawableObj->setSoftBodies(std::move(isSoftBody));
@@ -592,11 +589,11 @@ void DartExample::updateManipulator() {
     _manipulator->setCommands(commands);
 }
 
-DrawableObject::DrawableObject(ViewerResourceManager& resourceManager, std::vector<Containers::Reference<GL::Mesh>>&& meshes, std::vector<MaterialData>&& materials,
+DrawableObject::DrawableObject(Shaders::PhongGL& colorShader, Shaders::PhongGL& textureShader, std::vector<Containers::Reference<GL::Mesh>>&& meshes, std::vector<MaterialData>&& materials,
 Object3D* parent, SceneGraph::DrawableGroup3D* group):
     Object3D{parent}, SceneGraph::Drawable3D{*this, group},
-    _colorShader{resourceManager.get<Shaders::PhongGL>("color")},
-    _textureShader{resourceManager.get<Shaders::PhongGL>("texture")},
+    _colorShader(colorShader),
+    _textureShader(textureShader),
     _meshes{std::move(meshes)},
     _materials{std::move(materials)}
 {
@@ -614,7 +611,7 @@ void DrawableObject::draw(const Matrix4& transformationMatrix, SceneGraph::Camer
             GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
 
         if(!_textures[i]) {
-            (*_colorShader)
+            _colorShader
                 .setAmbientColor(_materials[i].ambientColor)
                 .setDiffuseColor(_materials[i].diffuseColor)
                 .setSpecularColor(_materials[i].specularColor)
@@ -628,7 +625,7 @@ void DrawableObject::draw(const Matrix4& transformationMatrix, SceneGraph::Camer
                 .setProjectionMatrix(camera.projectionMatrix())
                 .draw(mesh);
         } else {
-            (*_textureShader)
+            _textureShader
                 .setAmbientColor(_materials[i].ambientColor)
                 .bindDiffuseTexture(*_textures[i])
                 .setSpecularColor(_materials[i].specularColor)
