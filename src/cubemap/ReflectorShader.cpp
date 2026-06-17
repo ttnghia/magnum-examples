@@ -33,7 +33,10 @@
 #include <Corrade/Containers/Iterable.h>
 #include <Corrade/Containers/StringView.h>
 #include <Corrade/Containers/StringStl.h>
+#include <Corrade/Utility/Format.h>
 #include <Corrade/Utility/Resource.h>
+#include <Magnum/Math/Color.h>
+#include <Magnum/Math/Matrix4.h>
 #include <Magnum/GL/CubeMapTexture.h>
 #include <Magnum/GL/Shader.h>
 #include <Magnum/GL/Texture.h>
@@ -43,8 +46,8 @@ namespace Magnum { namespace Examples {
 
 namespace {
     enum: Int {
-        TextureLayer = 0,
-        TarnishTextureLayer = 1
+        CubeMapTextureBinding = 0,
+        TarnishTextureBinding = 1
     };
 }
 
@@ -54,7 +57,12 @@ ReflectorShader::ReflectorShader() {
     GL::Shader vert(GL::Version::GL330, GL::Shader::Type::Vertex);
     GL::Shader frag(GL::Version::GL330, GL::Shader::Type::Fragment);
 
-    vert.addSource(rs.getString("ReflectorShader.vert"));
+    vert.addSource(Utility::format(
+            "#define POSITION_ATTRIBUTE_LOCATION {}\n"
+            "#define TEXTURE_COORDINATES_ATTRIBUTE_LOCATION {}\n",
+            Position::Location,
+            TextureCoordinates::Location))
+        .addSource(rs.getString("ReflectorShader.vert"));
     frag.addSource(rs.getString("ReflectorShader.frag"));
 
     CORRADE_INTERNAL_ASSERT_OUTPUT(vert.compile() && frag.compile());
@@ -70,17 +78,47 @@ ReflectorShader::ReflectorShader() {
     _reflectivityUniform = uniformLocation("reflectivity");
     _diffuseColorUniform = uniformLocation("diffuseColor");
 
-    setUniform(uniformLocation("textureData"), TextureLayer);
-    setUniform(uniformLocation("tarnishTextureData"), TarnishTextureLayer);
+    setUniform(uniformLocation("cubeMapTexture"), CubeMapTextureBinding);
+    setUniform(uniformLocation("tarnishTexture"), TarnishTextureBinding);
 }
 
-ReflectorShader& ReflectorShader::setTexture(GL::CubeMapTexture& texture) {
-    texture.bind(TextureLayer);
+ReflectorShader& ReflectorShader::setTransformationMatrix(const Matrix4& matrix) {
+    setUniform(_transformationMatrixUniform, matrix);
     return *this;
 }
 
-ReflectorShader& ReflectorShader::setTarnishTexture(GL::Texture2D& texture) {
-    texture.bind(TarnishTextureLayer);
+ReflectorShader& ReflectorShader::setNormalMatrix(const Matrix3x3& matrix) {
+    setUniform(_normalMatrixUniform, matrix);
+    return *this;
+}
+
+ReflectorShader& ReflectorShader::setProjectionMatrix(const Matrix4& matrix) {
+    setUniform(_projectionMatrixUniform, matrix);
+    return *this;
+}
+
+ReflectorShader& ReflectorShader::setCameraMatrix(const Matrix3x3& matrix) {
+    setUniform(_cameraMatrixUniform, matrix);
+    return *this;
+}
+
+ReflectorShader& ReflectorShader::setReflectivity(Float reflectivity) {
+    setUniform(_reflectivityUniform, reflectivity);
+    return *this;
+}
+
+ReflectorShader& ReflectorShader::setDiffuseColor(const Color3& color) {
+    setUniform(_diffuseColorUniform, color);
+    return *this;
+}
+
+ReflectorShader& ReflectorShader::bindCubeMapTexture(GL::CubeMapTexture& texture) {
+    texture.bind(CubeMapTextureBinding);
+    return *this;
+}
+
+ReflectorShader& ReflectorShader::bindTarnishTexture(GL::Texture2D& texture) {
+    texture.bind(TarnishTextureBinding);
     return *this;
 }
 

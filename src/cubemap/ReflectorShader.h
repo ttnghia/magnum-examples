@@ -31,52 +31,26 @@
 */
 
 #include <Magnum/GL/AbstractShaderProgram.h>
-#include <Magnum/Math/Color.h>
-#include <Magnum/Math/Matrix3.h>
-#include <Magnum/Math/Matrix4.h>
+#include <Magnum/Shaders/GenericGL.h>
 
 namespace Magnum { namespace Examples {
 
 class ReflectorShader: public GL::AbstractShaderProgram {
     public:
-        typedef GL::Attribute<0, Vector3> Position;
-        typedef GL::Attribute<1, Vector2> TextureCoords;
+        typedef Shaders::GenericGL3D::Position Position;
+        typedef Shaders::GenericGL3D::TextureCoordinates TextureCoordinates;
 
         explicit ReflectorShader();
+        explicit ReflectorShader(NoCreateT): GL::AbstractShaderProgram{NoCreate} {}
 
-        ReflectorShader& setTransformationMatrix(const Matrix4& matrix) {
-            setUniform(_transformationMatrixUniform, matrix);
-            return *this;
-        }
-
-        ReflectorShader& setNormalMatrix(const Matrix3& matrix) {
-            setUniform(_normalMatrixUniform, matrix);
-            return *this;
-        }
-
-        ReflectorShader& setProjectionMatrix(const Matrix4& matrix) {
-            setUniform(_projectionMatrixUniform, matrix);
-            return *this;
-        }
-
-        ReflectorShader& setCameraMatrix(const Matrix3& matrix) {
-            setUniform(_cameraMatrixUniform, matrix);
-            return *this;
-        }
-
-        ReflectorShader& setReflectivity(Float reflectivity) {
-            setUniform(_reflectivityUniform, reflectivity);
-            return *this;
-        }
-
-        ReflectorShader& setDiffuseColor(const Color3& color) {
-            setUniform(_diffuseColorUniform, color);
-            return *this;
-        }
-
-        ReflectorShader& setTexture(GL::CubeMapTexture& texture);
-
-        ReflectorShader& setTarnishTexture(GL::Texture2D& texture);
+        ReflectorShader& setTransformationMatrix(const Matrix4& matrix);
+        ReflectorShader& setNormalMatrix(const Matrix3x3& matrix);
+        ReflectorShader& setProjectionMatrix(const Matrix4& matrix);
+        ReflectorShader& setCameraMatrix(const Matrix3x3& matrix);
+        ReflectorShader& setReflectivity(Float reflectivity);
+        ReflectorShader& setDiffuseColor(const Color3& color);
+        ReflectorShader& bindCubeMapTexture(GL::CubeMapTexture& texture);
+        ReflectorShader& bindTarnishTexture(GL::Texture2D& texture);
 
     private:
         Int _transformationMatrixUniform,

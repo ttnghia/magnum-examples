@@ -29,11 +29,11 @@
 */
 
 uniform vec3 diffuseColor;
-uniform samplerCube textureData;
-uniform sampler2D tarnishTextureData;
+uniform samplerCube cubeMapTexture;
+uniform sampler2D tarnishTexture;
 
-in vec3 cubeMapTextureCoords;
-in vec2 tarnishTextureCoords;
+in vec3 cubeMapTextureCoordinates;
+in vec2 tarnishTextureCoordinates;
 in float factor;
 
 out vec4 fragmentColor;
@@ -41,7 +41,7 @@ out vec4 fragmentColor;
 void main(void) {
     /* Combine diffuse color and reflection based on refection factor,
        multiply with tarnish texture */
-    fragmentColor.rgb = mix(texture(textureData, cubeMapTextureCoords).rgb, diffuseColor, factor)
-        * texture(tarnishTextureData, tarnishTextureCoords).rgb;
+    fragmentColor.rgb = mix(texture(cubeMapTexture, cubeMapTextureCoordinates).rgb, diffuseColor, factor)
+        * texture(tarnishTexture, tarnishTextureCoordinates).rgb;
     fragmentColor.a = 1.0;
 }

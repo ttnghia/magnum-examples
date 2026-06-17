@@ -34,12 +34,12 @@ uniform mat4 projectionMatrix;
 uniform mat3 cameraMatrix;
 uniform float reflectivity;
 
-layout(location = 0) in vec4 position;
-layout(location = 1) in vec2 textureCoords;
+layout(location = POSITION_ATTRIBUTE_LOCATION) in vec4 position;
+layout(location = TEXTURE_COORDINATES_ATTRIBUTE_LOCATION) in vec2 textureCoordinates;
 
 out float factor;
-out vec3 cubeMapTextureCoords;
-out vec2 tarnishTextureCoords;
+out vec3 cubeMapTextureCoordinates;
+out vec2 tarnishTextureCoordinates;
 
 void main(void) {
     vec4 transformedVertex = transformationMatrix*position;
@@ -47,13 +47,13 @@ void main(void) {
 
     /* Reflection vector */
     vec3 reflection = reflect(normalize(transformedVertex.xyz), transformedNormal);
-    cubeMapTextureCoords = cameraMatrix*reflection;
+    cubeMapTextureCoordinates = cameraMatrix*reflection;
 
     /* Factor of reflectivity - normals perpendicular to viewer are not reflective */
     factor = pow(1 - max(0.0, dot(transformedNormal,
         normalize(cameraMatrix*normalMatrix*vec3(0, 0, 1)))),
         reflectivity);
 
-    tarnishTextureCoords = textureCoords;
+    tarnishTextureCoordinates = textureCoordinates;
     gl_Position = projectionMatrix*transformedVertex;
 }

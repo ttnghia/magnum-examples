@@ -33,7 +33,9 @@
 #include <Corrade/Containers/Iterable.h>
 #include <Corrade/Containers/StringView.h>
 #include <Corrade/Containers/StringStl.h>
+#include <Corrade/Utility/Format.h>
 #include <Corrade/Utility/Resource.h>
+#include <Magnum/Math/Matrix4.h>
 #include <Magnum/GL/CubeMapTexture.h>
 #include <Magnum/GL/Shader.h>
 #include <Magnum/GL/Version.h>
@@ -41,7 +43,7 @@
 namespace Magnum { namespace Examples {
 
 namespace {
-    enum: Int { TextureLayer = 0 };
+    enum: Int { TextureBinding = 0 };
 }
 
 CubeMapShader::CubeMapShader() {
@@ -50,7 +52,9 @@ CubeMapShader::CubeMapShader() {
     GL::Shader vert(GL::Version::GL330, GL::Shader::Type::Vertex);
     GL::Shader frag(GL::Version::GL330, GL::Shader::Type::Fragment);
 
-    vert.addSource(rs.getString("CubeMapShader.vert"));
+    vert.addSource(Utility::format(
+            "#define POSITION_ATTRIBUTE_LOCATION {}\n", Position::Location))
+        .addSource(rs.getString("CubeMapShader.vert"));
     frag.addSource(rs.getString("CubeMapShader.frag"));
 
     CORRADE_INTERNAL_ASSERT_OUTPUT(vert.compile() && frag.compile());
@@ -61,11 +65,16 @@ CubeMapShader::CubeMapShader() {
 
     _transformationProjectionMatrixUniform = uniformLocation("transformationProjectionMatrix");
 
-    setUniform(uniformLocation("textureData"), TextureLayer);
+    setUniform(uniformLocation("cubeMapTexture"), TextureBinding);
 }
 
-CubeMapShader& CubeMapShader::setTexture(GL::CubeMapTexture& texture) {
-    texture.bind(TextureLayer);
+CubeMapShader& CubeMapShader::setTransformationProjectionMatrix(const Matrix4& matrix) {
+    setUniform(_transformationProjectionMatrixUniform, matrix);
+    return *this;
+}
+
+CubeMapShader& CubeMapShader::bindTexture(GL::CubeMapTexture& texture) {
+    texture.bind(TextureBinding);
     return *this;
 }
 

@@ -28,12 +28,12 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-uniform samplerCube textureData;
+uniform samplerCube cubeMapTexture;
 
-in vec3 textureCoords;
+in vec3 textureCoordinates;
 
 out vec4 fragmentColor;
 
 void main(void) {
-    fragmentColor = texture(textureData, textureCoords);
+    fragmentColor = texture(cubeMapTexture, textureCoordinates);
 }

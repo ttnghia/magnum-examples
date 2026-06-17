@@ -30,12 +30,12 @@
 
 uniform mat4 transformationProjectionMatrix;
 
-layout(location = 0) in vec4 position;
+layout(location = POSITION_ATTRIBUTE_LOCATION) in vec4 position;
 
-out vec3 textureCoords;
+out vec3 textureCoordinates;
 
 void main(void) {
-    textureCoords = position.xyz;
+    textureCoordinates = position.xyz;
 
     gl_Position = transformationProjectionMatrix*position;
 }

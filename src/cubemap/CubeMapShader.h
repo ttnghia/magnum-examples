@@ -31,22 +31,19 @@
 */
 
 #include <Magnum/GL/AbstractShaderProgram.h>
-#include <Magnum/Math/Matrix4.h>
+#include <Magnum/Shaders/GenericGL.h>
 
 namespace Magnum { namespace Examples {
 
 class CubeMapShader: public GL::AbstractShaderProgram {
     public:
-        typedef GL::Attribute<0, Vector3> Position;
+        typedef Shaders::GenericGL3D::Position Position;
 
         explicit CubeMapShader();
+        explicit CubeMapShader(NoCreateT): GL::AbstractShaderProgram{NoCreate} {}
 
-        CubeMapShader& setTransformationProjectionMatrix(const Matrix4& matrix) {
-            setUniform(_transformationProjectionMatrixUniform, matrix);
-            return *this;
-        }
-
-        CubeMapShader& setTexture(GL::CubeMapTexture& texture);
+        CubeMapShader& setTransformationProjectionMatrix(const Matrix4& matrix);
+        CubeMapShader& bindTexture(GL::CubeMapTexture& texture);
 
     private:
         Int _transformationProjectionMatrixUniform;
