@@ -28,7 +28,6 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <Corrade/Containers/Array.h>
 #include <Corrade/Containers/GrowableArray.h>
 #include <Corrade/Containers/Optional.h>
 #include <Corrade/Containers/Reference.h>
@@ -509,7 +508,7 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
         /* Assign drawables to the created objects. This is not a 1:1 mapping,
            i.e. there can be more than one mesh assigned to the same object, or
            none at all. */
-        for(Containers::Pair<UnsignedInt, Containers::Pair<UnsignedInt, Int>> meshMaterial: meshesMaterials) {
+        for(const Containers::Pair<UnsignedInt, Containers::Pair<UnsignedInt, Int>>& meshMaterial: meshesMaterials) {
             CORRADE_INTERNAL_ASSERT(meshMaterial.second().second() != -1);
 
             new Drawable{*objects[meshMaterial.first()], _shader,
@@ -839,7 +838,7 @@ void MultiDrawExample::drawEvent() {
         _sceneGraph.cameraObject.setTransformation(_cameraTransformation);
         _sceneGraph.camera->draw(_sceneGraph.drawables);
 
-    /* Direct drawing  */
+    /* Direct drawing */
     } else {
         /* Calculate absolute transformations based on the parent order first.
            The first index in rootObjectAbsoluteTransformations is the root
@@ -1025,6 +1024,7 @@ void MultiDrawExample::drawEvent() {
                         #endif
                             &_shaderUniformBufferMultiDraw;
                 else CORRADE_INTERNAL_ASSERT_UNREACHABLE();
+
                 (*shader)
                     .bindProjectionBuffer(_uniformMulti.projectionUniform)
                     .bindMaterialBuffer(_uniformMulti.materialUniform)
@@ -1055,7 +1055,7 @@ void MultiDrawExample::drawEvent() {
                     _shaderStorageBuffers ?
                         _direct.draws.size() :
                     #endif
-                    Math::min<UnsignedInt>(1024, _direct.draws.size());
+                        Math::min<UnsignedInt>(1024, _direct.draws.size());
                 if(_drawType == DrawType::UboDrawOffset) for(std::size_t i = 0; i != drawCount; ++i) {
                     (*shader)
                         .setDrawOffset(i)
