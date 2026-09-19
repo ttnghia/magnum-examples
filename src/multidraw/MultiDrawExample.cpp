@@ -883,7 +883,9 @@ void MultiDrawExample::drawEvent() {
                     .draw(*_direct.meshes[i]);
             }
 
-        } else if(_drawType == DrawType::DeduplicatedLoop) {
+        } else if(_drawType == DrawType::DeduplicatedLoop ||
+                  _drawType == DrawType::DeduplicatedLoopMeshViews)
+        {
             _shader
                 .setProjectionMatrix(_projection)
                 .setLightPositions({_direct.lights[0].position,
@@ -903,32 +905,13 @@ void MultiDrawExample::drawEvent() {
                     .setSpecularColor(_direct.materials[materialId].specularColor)
                     .setShininess(_direct.materials[materialId].shininess)
                     .setTransformationMatrix(_direct.absoluteTransformations[i].transformationMatrix)
-                    .setNormalMatrix(Matrix3x3{_direct.draws[i].normalMatrix})
-                    .draw(*_direct.meshes[i]);
-            }
+                    .setNormalMatrix(Matrix3x3{_direct.draws[i].normalMatrix});
 
-        } else if(_drawType == DrawType::DeduplicatedLoopMeshViews) {
-            _shader
-                .setProjectionMatrix(_projection)
-                .setLightPositions({_direct.lights[0].position,
-                                    _direct.lights[1].position})
-                .setLightColors({_direct.lights[0].color,
-                                 _direct.lights[1].color})
-                .setLightSpecularColors({_direct.lights[0].specularColor,
-                                         _direct.lights[1].specularColor})
-                .setLightRanges({_direct.lights[0].range,
-                                 _direct.lights[1].range});
-
-            for(std::size_t i = 0; i != _direct.draws.size(); ++i) {
-                const std::size_t materialId = _direct.draws[i].materialId;
-                _shader
-                    .setAmbientColor(_direct.materials[materialId].ambientColor)
-                    .setDiffuseColor(_direct.materials[materialId].diffuseColor)
-                    .setSpecularColor(_direct.materials[materialId].specularColor)
-                    .setShininess(_direct.materials[materialId].shininess)
-                    .setTransformationMatrix(_direct.absoluteTransformations[i].transformationMatrix)
-                    .setNormalMatrix(Matrix3x3{_direct.draws[i].normalMatrix})
-                    .draw(*_direct.meshViews[i]);
+                if(_drawType == DrawType::DeduplicatedLoop)
+                    _shader.draw(*_direct.meshes[i]);
+                else if(_drawType == DrawType::DeduplicatedLoopMeshViews)
+                    _shader.draw(*_direct.meshViews[i]);
+                else CORRADE_INTERNAL_DEBUG_ASSERT_UNREACHABLE();
             }
 
         } else if(_drawType == DrawType::UboPerDraw) {
