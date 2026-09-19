@@ -446,8 +446,41 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
     const Containers::Array<Containers::Pair<UnsignedInt, Matrix4>> transformations = scene.transformations3DAsArray();
     const Containers::Array<Containers::Pair<UnsignedInt, Containers::Pair<UnsignedInt, Int>>> meshesMaterials = scene.meshesMaterialsAsArray();
 
-    /* SceneGraph setup. Uhh, so much typing. Yes, it's a local class to have
-       all the abstraction overhead nicely visible from a single place. */
+    /* For everything other than SceneGraph we need an (object ID, parent ID)
+       mapping ordered in a way that puts parents before their children, which
+       is going to get used for hierarchical transformation calculation */
+    _direct.parentOrder = SceneTools::parentsBreadthFirst(scene);
+
+    /* Object transformations, and a temporary array for calculating absolute
+       transformations by non-SceneGraph code paths. This array will get fully
+       overwritten every draw but keeping it as a member to avoid reallocating
+       it every frame. */
+    _direct.objectTransformations = Containers::Array<Matrix4>{ValueInit, std::size_t(scene.mappingBound())};
+    for(const Containers::Pair<UnsignedInt, Matrix4>& transformation: transformations)
+        _direct.objectTransformations[transformation.first()] = transformation.second();
+    _direct.rootObjectAbsoluteTransformations = Containers::Array<Matrix4>{NoInit, std::size_t(scene.mappingBound()) + 1};
+
+    /* Direct drawing is simply done in the order of the meshesMaterials list,
+       so we also have to populate a mapping from those to transformations
+       indexed by object ID */
+    _direct.absoluteTransformationMapping = Containers::Array<UnsignedInt>{NoInit, meshesMaterials.size()};
+    _direct.absoluteTransformations = Containers::Array<Shaders::TransformationUniform3D>{ValueInit, meshesMaterials.size()};
+    arrayReserve(_direct.meshes, meshesMaterials.size());
+    arrayReserve(_direct.meshViews, meshesMaterials.size());
+    _direct.draws = Containers::Array<Shaders::PhongDrawUniform>{ValueInit, meshesMaterials.size()};
+    for(std::size_t i = 0; i != meshesMaterials.size(); ++i) {
+        /* The rootObjectAbsoluteTransformations array contains a root
+           transformation at index 0, so add 1 to the object ID */
+        _direct.absoluteTransformationMapping[i] = meshesMaterials[i].first() + 1;
+        CORRADE_INTERNAL_ASSERT(meshesMaterials[i].second().second() != -1);
+        arrayAppend(_direct.meshes, _meshes[meshesMaterials[i].second().first()]);
+        arrayAppend(_direct.meshViews, _meshViews[meshesMaterials[i].second().first()]);
+        _direct.draws[i].setMaterialId(meshesMaterials[i].second().second());
+    }
+
+    /* At last, SceneGraph setup. Uhh, so much typing. Yes, it's a local class
+       to have all the abstraction overhead nicely visible from a single
+       place. */
     {
         class Drawable: public SceneGraph::Drawable3D {
             public:
@@ -519,37 +552,6 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
                 _direct.materials[meshMaterial.second().second()].shininess,
                 _sceneGraph.drawables};
         }
-    }
-
-    /* For everything other than SceneGraph we need an (object ID, parent ID)
-       mapping ordered in a way that puts parents before their children, which
-       is going to get used for hierarchical transformation calculation */
-    _direct.parentOrder = SceneTools::parentsBreadthFirst(scene);
-
-    /* Object transformations, and a temporary array for calculating absolute
-       transformations. This array will get fully overwritten every draw but
-       keeping it as a member to avoid reallocating it every frame. */
-    _direct.objectTransformations = Containers::Array<Matrix4>{ValueInit, std::size_t(scene.mappingBound())};
-    for(const Containers::Pair<UnsignedInt, Matrix4>& transformation: transformations)
-        _direct.objectTransformations[transformation.first()] = transformation.second();
-    _direct.rootObjectAbsoluteTransformations = Containers::Array<Matrix4>{NoInit, std::size_t(scene.mappingBound()) + 1};
-
-    /* Direct drawing is simply done in the order of the meshesMaterials list,
-       so we also have to populate a mapping from those to transformations
-       indexed by object ID */
-    _direct.absoluteTransformationMapping = Containers::Array<UnsignedInt>{NoInit, meshesMaterials.size()};
-    _direct.absoluteTransformations = Containers::Array<Shaders::TransformationUniform3D>{ValueInit, meshesMaterials.size()};
-    arrayReserve(_direct.meshes, meshesMaterials.size());
-    arrayReserve(_direct.meshViews, meshesMaterials.size());
-    _direct.draws = Containers::Array<Shaders::PhongDrawUniform>{ValueInit, meshesMaterials.size()};
-    for(std::size_t i = 0; i != meshesMaterials.size(); ++i) {
-        /* The rootObjectAbsoluteTransformations array contains a root
-           transformation at index 0, so add 1 to the object ID */
-        _direct.absoluteTransformationMapping[i] = meshesMaterials[i].first() + 1;
-        CORRADE_INTERNAL_ASSERT(meshesMaterials[i].second().second() != -1);
-        arrayAppend(_direct.meshes, _meshes[meshesMaterials[i].second().first()]);
-        arrayAppend(_direct.meshViews, _meshViews[meshesMaterials[i].second().first()]);
-        _direct.draws[i].setMaterialId(meshesMaterials[i].second().second());
     }
 
     /* Set up shaders. The multi-draw shaders and uniform storage are set up
