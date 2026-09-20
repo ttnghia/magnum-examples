@@ -1,0 +1,70 @@
+# Author: mosra <mosra@centrum.cz>
+pkgname=magnum-examples
+pkgver=dev.clang.addressanitizer
+pkgrel=1
+pkgdesc="Examples for the Magnum C++11 graphics engine (built with Clang)"
+arch=('i686' 'x86_64')
+url="https://magnum.graphics"
+license=('custom:Public Domain')
+depends=('magnum' 'magnum-plugins' 'magnum-integration' 'magnum-extras' 'bullet' 'openal' 'glew' 'box2d' 'imgui-src')
+makedepends=('cmake' 'ninja' 'clang')
+options=(!strip)
+provides=('magnum-examples-git')
+
+_rootdir=$startdir/../../
+
+build() {
+    if [ ! -d "$_rootdir/build-clang-addressanitizer" ] ; then
+        mkdir "$_rootdir/build-clang-addressanitizer"
+        cd "$_rootdir/build-clang-addressanitizer"
+
+        cmake .. \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address" \
+            -G Ninja
+    fi
+
+    cd "$_rootdir/build-clang-addressanitizer"
+
+    cmake .. \
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DIMGUI_DIR=/opt/imgui \
+        -DMAGNUM_WITH_ANIMATED_GIF_EXAMPLE=ON \
+        -DMAGNUM_WITH_ARCBALL_EXAMPLE=ON \
+        -DMAGNUM_WITH_AREALIGHTS_EXAMPLE=ON \
+        -DMAGNUM_WITH_AUDIO_EXAMPLE=ON \
+        -DMAGNUM_WITH_BOX2D_EXAMPLE=ON \
+        -DMAGNUM_WITH_BULLET_EXAMPLE=ON \
+        -DMAGNUM_WITH_CUBEMAP_EXAMPLE=ON \
+        -DMAGNUM_WITH_DART_EXAMPLE=OFF \
+        -DMAGNUM_WITH_FLUIDSIMULATION2D_EXAMPLE=ON \
+        -DMAGNUM_WITH_FLUIDSIMULATION3D_EXAMPLE=ON \
+        -DMAGNUM_WITH_IMGUI_EXAMPLE=ON \
+        -DMAGNUM_WITH_MOTIONBLUR_EXAMPLE=ON \
+        -DMAGNUM_WITH_MOUSEINTERACTION_EXAMPLE=ON \
+        -DMAGNUM_WITH_MULTIDRAW_EXAMPLE=ON \
+        -DMAGNUM_WITH_OCTREE_EXAMPLE=ON \
+        -DMAGNUM_WITH_PRIMITIVES_EXAMPLE=ON \
+        -DMAGNUM_WITH_PICKING_EXAMPLE=ON \
+        -DMAGNUM_WITH_RAYTRACING_EXAMPLE=ON \
+        -DMAGNUM_WITH_SHADOWS_EXAMPLE=ON \
+        -DMAGNUM_WITH_TEXT_EXAMPLE=ON \
+        -DMAGNUM_WITH_TEXTUREDQUAD_EXAMPLE=ON \
+        -DMAGNUM_WITH_TEXTUREDTRIANGLE_VULKAN_EXAMPLE=ON \
+        -DMAGNUM_WITH_TRIANGLE_EXAMPLE=ON \
+        -DMAGNUM_WITH_TRIANGLE_PLAIN_GLFW_EXAMPLE=ON \
+        -DMAGNUM_WITH_TRIANGLE_SOKOL_EXAMPLE=OFF \
+        -DMAGNUM_WITH_TRIANGLE_VULKAN_EXAMPLE=ON \
+        -DMAGNUM_WITH_VIEWER_EXAMPLE=ON
+    ninja
+}
+
+package() {
+    cd "$_rootdir/build-clang-addressanitizer"
+    DESTDIR="$pkgdir/" ninja install
+
+    # Install the UNLICENSE because Arch has no pre-defined license for Public
+    # Domain
+    install -D -m644 "${_rootdir}/COPYING" "${pkgdir}/usr/share/licenses/${pkgname}/COPYING"
+}
