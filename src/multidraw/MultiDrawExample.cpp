@@ -28,6 +28,7 @@
     CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#include <algorithm>
 #include <Corrade/Containers/GrowableArray.h>
 #include <Corrade/Containers/Optional.h>
 #include <Corrade/Containers/Reference.h>
@@ -219,6 +220,11 @@ class MultiDrawExample: public Platform::Application {
             /** @todo option to use indirect multi draw instead of MeshView
                 instances */
             Containers::Array<Shaders::PhongDrawUniform> draws;
+            /* Items in the draw array until this index all use a CCW face
+               winding, starting with this index they have negative scaling and
+               thus a CW winding. If this is the same as draws.size(), there
+               are no meshes with a negative scale. */
+            std::size_t firstFlippedWindingDraw;
 
             /* Mapping from draw data to the rootObjectAbsoluteTransformations
                array above, and transformations copied from there in that
@@ -450,9 +456,10 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
     _direct.lights = Containers::Array<Shaders::PhongLightUniform>{ValueInit, 2};
 
     /* (Object ID, transformation) pairs and (Object ID, (mesh, material))
-       tuples, both in no particular order */
+       tuples, both in no particular order. The mesh / material array gets
+       subsequently partitioned based on whether negative scaling is used. */
     const Containers::Array<Containers::Pair<UnsignedInt, Matrix4>> transformations = scene.transformations3DAsArray();
-    const Containers::Array<Containers::Pair<UnsignedInt, Containers::Pair<UnsignedInt, Int>>> meshesMaterials = scene.meshesMaterialsAsArray();
+    /*mutable*/ Containers::Array<Containers::Pair<UnsignedInt, Containers::Pair<UnsignedInt, Int>>> meshesMaterials = scene.meshesMaterialsAsArray();
 
     /* For everything other than SceneGraph we need an (object ID, parent ID)
        mapping ordered in a way that puts parents before their children, which
@@ -467,6 +474,29 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
     for(const Containers::Pair<UnsignedInt, Matrix4>& transformation: transformations)
         _direct.objectTransformations[transformation.first()] = transformation.second();
     _direct.rootObjectAbsoluteTransformations = Containers::Array<Matrix4>{NoInit, std::size_t(scene.mappingBound()) + 1};
+
+    /* Heavily instanced scenes often contain meshes rendered with negative
+       scaling for mirrored portions, calculate absolute transformations for
+       all draws and filter out draws with negative scaling. To have lighting
+       correct for those we need to switch face winding from CCW to CW. */
+    /** @todo have a SceneTools utility producing a bitmask for this (or even
+        directly partitioning a scene field?) directly, internally it can
+        likely just combine determinant signs instead of doing full matrix
+        multiplications */
+    {
+        _direct.rootObjectAbsoluteTransformations[0] = {};
+        for(Containers::Pair<UnsignedInt, Int> objectParent: _direct.parentOrder)
+            _direct.rootObjectAbsoluteTransformations[objectParent.first() + 1] = _direct.rootObjectAbsoluteTransformations[objectParent.second() + 1]*_direct.objectTransformations[objectParent.first()];
+
+        /* Negative determinant signalizes that a negative scaling is used. To
+           reduce state changes, take the draw list and partition it to have
+           the flipped windings (i.e., for which the lambda returns false) all
+           together at the end. */
+        _direct.firstFlippedWindingDraw = std::partition(meshesMaterials.begin(), meshesMaterials.end(), [&](const Containers::Pair<UnsignedInt, Containers::Pair<UnsignedInt, Int>>& i) {
+            /* Plus one because the first element is the root transformation */
+            return _direct.rootObjectAbsoluteTransformations[i.first() + 1].determinant() >= 0.0f;
+        }) - meshesMaterials.begin();
+    }
 
     /* Direct drawing is simply done in the order of the meshesMaterials list,
        so we also have to populate a mapping from those to transformations
@@ -492,10 +522,13 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
     {
         class Drawable: public SceneGraph::Drawable3D {
             public:
-                explicit Drawable(Object3D& object, Shaders::PhongGL& shader, GL::Mesh& mesh, const Color4& ambient, const Color4& diffuse, const Color3& specular, Float shininess, SceneGraph::DrawableGroup3D& group): SceneGraph::Drawable3D{object, &group}, _shader(shader), _mesh(mesh), _ambient{ambient}, _diffuse{diffuse}, _specular{specular}, _shininess{shininess} {}
+                explicit Drawable(Object3D& object, Shaders::PhongGL& shader, GL::Mesh& mesh, const Color4& ambient, const Color4& diffuse, const Color3& specular, Float shininess, bool flippedWinding, SceneGraph::DrawableGroup3D& group): SceneGraph::Drawable3D{object, &group}, _shader(shader), _mesh(mesh), _ambient{ambient}, _diffuse{diffuse}, _specular{specular}, _shininess{shininess}, _flippedWinding{flippedWinding} {}
 
             private:
                 void draw(const Matrix4& transformationMatrix, SceneGraph::Camera3D& camera) override {
+                    if(_flippedWinding)
+                        GL::Renderer::setFrontFace(GL::Renderer::FrontFace::ClockWise);
+
                     _shader
                         .setAmbientColor(_ambient)
                         .setDiffuseColor(_diffuse)
@@ -512,6 +545,10 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
                         .setNormalMatrix(transformationMatrix.normalMatrix())
                         .setProjectionMatrix(camera.projectionMatrix())
                         .draw(_mesh);
+
+                    /* Reset back, assuming most draws use the default CCW */
+                    if(_flippedWinding)
+                        GL::Renderer::setFrontFace(GL::Renderer::FrontFace::CounterClockWise);
                 }
 
                 Shaders::PhongGL& _shader;
@@ -519,6 +556,7 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
                 Color4 _ambient, _diffuse;
                 Color3 _specular;
                 Float _shininess;
+                bool _flippedWinding;
         };
 
         _sceneGraph.cameraObject
@@ -549,7 +587,8 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
         /* Assign drawables to the created objects. This is not a 1:1 mapping,
            i.e. there can be more than one mesh assigned to the same object, or
            none at all. */
-        for(const Containers::Pair<UnsignedInt, Containers::Pair<UnsignedInt, Int>>& meshMaterial: meshesMaterials) {
+        for(std::size_t i = 0; i != meshesMaterials.size(); ++i) {
+            const Containers::Pair<UnsignedInt, Containers::Pair<UnsignedInt, Int>>& meshMaterial = meshesMaterials[i];
             CORRADE_INTERNAL_ASSERT(meshMaterial.second().second() != -1);
 
             new Drawable{*objects[meshMaterial.first()], _shader,
@@ -558,6 +597,7 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
                 _direct.materials[meshMaterial.second().second()].diffuseColor,
                 _direct.materials[meshMaterial.second().second()].specularColor.rgb(),
                 _direct.materials[meshMaterial.second().second()].shininess,
+                _direct.firstFlippedWindingDraw <= i,
                 _sceneGraph.drawables};
         }
     }
@@ -877,6 +917,12 @@ void MultiDrawExample::drawEvent() {
         /* Render everything in a simple loop */
         if(_drawType == DrawType::TrivialLoop) {
             for(std::size_t i = 0; i != _direct.draws.size(); ++i) {
+                /* Here the state is changed every draw to exactly match what's
+                   done in the SceneGraph drawable. The DeduplicatedLoop etc.
+                   variants then do the state change only once. */
+                if(i >= _direct.firstFlippedWindingDraw)
+                    GL::Renderer::setFrontFace(GL::Renderer::FrontFace::ClockWise);
+
                 const std::size_t materialId = _direct.draws[i].materialId;
                 _shader
                     .setAmbientColor(_direct.materials[materialId].ambientColor)
@@ -895,6 +941,9 @@ void MultiDrawExample::drawEvent() {
                     .setNormalMatrix(Matrix3x3{_direct.draws[i].normalMatrix})
                     .setProjectionMatrix(_projection)
                     .draw(*_direct.meshes[i]);
+
+                if(i >= _direct.firstFlippedWindingDraw)
+                    GL::Renderer::setFrontFace(GL::Renderer::FrontFace::CounterClockWise);
             }
 
         } else if(_drawType == DrawType::DeduplicatedLoop ||
@@ -912,6 +961,9 @@ void MultiDrawExample::drawEvent() {
                                  _direct.lights[1].range});
 
             for(std::size_t i = 0; i != _direct.draws.size(); ++i) {
+                if(i == _direct.firstFlippedWindingDraw)
+                    GL::Renderer::setFrontFace(GL::Renderer::FrontFace::ClockWise);
+
                 const std::size_t materialId = _direct.draws[i].materialId;
                 _shader
                     .setAmbientColor(_direct.materials[materialId].ambientColor)
@@ -928,6 +980,9 @@ void MultiDrawExample::drawEvent() {
                 else CORRADE_INTERNAL_DEBUG_ASSERT_UNREACHABLE();
             }
 
+            if(_direct.draws.size() > _direct.firstFlippedWindingDraw)
+                GL::Renderer::setFrontFace(GL::Renderer::FrontFace::CounterClockWise);
+
         } else if(_drawType == DrawType::UboPerDraw) {
             _uniformSingle.projectionUniform.setSubData(0, _direct.projection);
             _uniformSingle.lightUniform.setSubData(0, _direct.lights);
@@ -936,6 +991,9 @@ void MultiDrawExample::drawEvent() {
                 .bindLightBuffer(_uniformSingle.lightUniform);
 
             for(std::size_t i = 0; i != _direct.draws.size(); ++i) {
+                if(i == _direct.firstFlippedWindingDraw)
+                    GL::Renderer::setFrontFace(GL::Renderer::FrontFace::ClockWise);
+
                 _uniformSingle.transformationUniform.setSubData(0, _direct.absoluteTransformations.sliceSize(i, 1));
                 _uniformSingle.materialUniform.setSubData(0, _direct.materials.sliceSize(_direct.draws[i].materialId, 1));
                 /* The shader is using a single material, so the material ID is
@@ -947,6 +1005,9 @@ void MultiDrawExample::drawEvent() {
                     .bindDrawBuffer(_uniformSingle.drawUniform)
                     .draw(*_direct.meshViews[i]);
             }
+
+            if(_direct.draws.size() > _direct.firstFlippedWindingDraw)
+                GL::Renderer::setFrontFace(GL::Renderer::FrontFace::CounterClockWise);
 
         } else if(_drawType == DrawType::UboBindOffset ||
                   _drawType == DrawType::UboDrawOffset ||
@@ -987,6 +1048,9 @@ void MultiDrawExample::drawEvent() {
                         #endif
                             _uniformMulti.lightUniform[_uniformMultiFrameId]);
                 for(std::size_t i = 0; i != _direct.draws.size(); ++i) {
+                    if(i == _direct.firstFlippedWindingDraw)
+                        GL::Renderer::setFrontFace(GL::Renderer::FrontFace::ClockWise);
+
                     _shaderUniformBufferSingle.bindTransformationBuffer(
                             #ifndef MAGNUM_TARGET_WEBGL
                             _stagingBuffers ?
@@ -1004,6 +1068,10 @@ void MultiDrawExample::drawEvent() {
                             i*sizeof(Shaders::PhongDrawUniform), sizeof(Shaders::PhongDrawUniform))
                         .draw(*_direct.meshViews[i]);
                 }
+
+                if(_direct.draws.size() > _direct.firstFlippedWindingDraw)
+                    GL::Renderer::setFrontFace(GL::Renderer::FrontFace::CounterClockWise);
+
             } else {
                 Shaders::PhongGL* shader;
                 if(_drawType == DrawType::UboDrawOffset)
@@ -1053,13 +1121,34 @@ void MultiDrawExample::drawEvent() {
                         _direct.draws.size() :
                     #endif
                         Math::min<UnsignedInt>(1024, _direct.draws.size());
-                if(_drawType == DrawType::UboDrawOffset) for(std::size_t i = 0; i != drawCount; ++i) {
-                    (*shader)
-                        .setDrawOffset(i)
-                        .draw(*_direct.meshViews[i]);
+                if(_drawType == DrawType::UboDrawOffset) {
+                    for(std::size_t i = 0; i != drawCount; ++i) {
+                        if(i == _direct.firstFlippedWindingDraw)
+                            GL::Renderer::setFrontFace(GL::Renderer::FrontFace::ClockWise);
+
+                        (*shader)
+                            .setDrawOffset(i)
+                            .draw(*_direct.meshViews[i]);
+                    }
+
+                    if(drawCount > _direct.firstFlippedWindingDraw)
+                        GL::Renderer::setFrontFace(GL::Renderer::FrontFace::CounterClockWise);
+
                 } else if(_drawType == DrawType::MultiDraw) {
                     (*shader)
-                        .draw(_direct.meshViews.prefix(drawCount));
+                        .setDrawOffset(0)
+                        .draw(_direct.meshViews.prefix(Math::min(drawCount, _direct.firstFlippedWindingDraw)));
+
+                    if(drawCount > _direct.firstFlippedWindingDraw) {
+                        GL::Renderer::setFrontFace(GL::Renderer::FrontFace::ClockWise);
+
+                        (*shader)
+                            .setDrawOffset(_direct.firstFlippedWindingDraw)
+                            .draw(_direct.meshViews.slice(_direct.firstFlippedWindingDraw, drawCount));
+
+                        GL::Renderer::setFrontFace(GL::Renderer::FrontFace::CounterClockWise);
+                    }
+
                 } else CORRADE_INTERNAL_ASSERT_UNREACHABLE();
 
                 _uniformMultiFrameId = (_uniformMultiFrameId + 1) % UniformMultiCount;
