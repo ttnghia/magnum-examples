@@ -389,7 +389,6 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
 
     /* Setup renderer defaults */
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
-    GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
 
     /* Load a file */
     PluginManager::Manager<Trade::AbstractImporter> manager;
@@ -402,8 +401,10 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
     CORRADE_INTERNAL_ASSERT_OUTPUT(importer && importer->openMemory(Utility::Resource{"data"}.getRaw("scene.glb")));
     #endif
 
-    /* Load just the basic color info from all materials */
+    /* Load just the basic color info from all materials. To simplify, if any
+       material has the double sided flag, use it for all draws. */
     _direct.materials = Containers::Array<Shaders::PhongMaterialUniform>{ValueInit, importer->materialCount()};
+    Shaders::PhongGL::Flags shaderFlags;
     for(UnsignedInt i = 0; i != importer->materialCount(); ++i) {
         const Containers::Optional<Trade::MaterialData> material = importer->material(i);
         CORRADE_INTERNAL_ASSERT(material);
@@ -411,7 +412,14 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
         _direct.materials[i].ambientColor = phong.ambientColor();
         _direct.materials[i].diffuseColor = phong.diffuseColor();
         _direct.materials[i].specularColor = phong.specularColor();
+        if(phong.isDoubleSided())
+            shaderFlags |= Shaders::PhongGL::Flag::DoubleSided;
     }
+
+    /* Enable face culling only if we don't need to render double-sided
+       materials. Again a global change for simplicity. */
+    if(!(shaderFlags >= Shaders::PhongGL::Flag::DoubleSided))
+        GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
 
     /* Load all meshes */
     Containers::Array<Trade::MeshData> meshData;
@@ -557,12 +565,13 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
     /* Set up shaders. The multi-draw shaders and uniform storage are set up
        based on the data count we have. */
     _shader = Shaders::PhongGL{Shaders::PhongGL::Configuration{}
+        .setFlags(shaderFlags)
         .setLightCount(2)};
     _shaderUniformBufferSingle = Shaders::PhongGL{Shaders::PhongGL::Configuration{}
-        .setFlags(Shaders::PhongGL::Flag::UniformBuffers)
+        .setFlags(shaderFlags|Shaders::PhongGL::Flag::UniformBuffers)
         .setLightCount(2)};
     _shaderUniformBufferMultiple = Shaders::PhongGL{Shaders::PhongGL::Configuration{}
-        .setFlags(Shaders::PhongGL::Flag::UniformBuffers)
+        .setFlags(shaderFlags|Shaders::PhongGL::Flag::UniformBuffers)
         .setLightCount(_direct.lights.size())
         .setMaterialCount(_direct.materials.size())
         /* At most 1024 draws can fit into the usual 64k UBO limit */
@@ -574,7 +583,8 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
     if(GL::Context::current().isVersionSupported(GL::Version::GLES310))
     #endif
         _shaderUniformBufferMultipleShaderStorage = Shaders::PhongGL{Shaders::PhongGL::Configuration{}
-            .setFlags(Shaders::PhongGL::Flag::ShaderStorageBuffers|
+            .setFlags(shaderFlags|
+                      Shaders::PhongGL::Flag::ShaderStorageBuffers|
                       Shaders::PhongGL::Flag::MultiDraw)
             .setLightCount(_direct.lights.size())};
     #endif
@@ -590,7 +600,8 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
         #endif
     >()) {
         _shaderUniformBufferMultiDraw = Shaders::PhongGL{Shaders::PhongGL::Configuration{}
-            .setFlags(Shaders::PhongGL::Flag::UniformBuffers|
+            .setFlags(shaderFlags|
+                      Shaders::PhongGL::Flag::UniformBuffers|
                       Shaders::PhongGL::Flag::MultiDraw)
             .setLightCount(_direct.lights.size())
             .setMaterialCount(_direct.materials.size())
@@ -603,7 +614,8 @@ UboBindOffset, UboDrawOffset, MultiDraw.)")
         if(GL::Context::current().isVersionSupported(GL::Version::GLES310))
         #endif
             _shaderUniformBufferMultiDrawShaderStorage = Shaders::PhongGL{Shaders::PhongGL::Configuration{}
-                .setFlags(Shaders::PhongGL::Flag::ShaderStorageBuffers|
+                .setFlags(shaderFlags|
+                          Shaders::PhongGL::Flag::ShaderStorageBuffers|
                           Shaders::PhongGL::Flag::MultiDraw)
                 .setLightCount(_direct.lights.size())};
         #endif
